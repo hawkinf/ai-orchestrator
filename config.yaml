@@ -1,0 +1,108 @@
+# AI Orchestrator Configuration
+# Copy to your project and customize
+
+# Project
+project_path: "."
+workspace_path: "./workspace"
+
+# Execution limits
+max_iterations: 3
+iteration_timeout_seconds: 300
+total_timeout_seconds: 1800
+
+# Auto behaviors
+allow_auto_commit: false
+require_human_on_destructive: true
+auto_push_on_complete: false
+
+# Validation commands by project type
+profiles:
+  flutter:
+    setup_commands:
+      - "flutter pub get"
+    validation_commands:
+      - "flutter analyze"
+      - "flutter test"
+
+  python:
+    setup_commands:
+      - "pip install -r requirements.txt"
+    validation_commands:
+      - "python -m pytest"
+      - "ruff check ."
+
+  csharp:
+    setup_commands:
+      - "dotnet restore"
+    validation_commands:
+      - "dotnet build"
+      - "dotnet test"
+
+  generic:
+    setup_commands: []
+    validation_commands: []
+
+# Current project profile
+active_profile: "generic"
+
+# Model configuration
+planner:
+  model_name: "gpt-4"
+  max_tokens: 4096
+  temperature: 0.2
+
+reviewer:
+  model_name: "gpt-4"
+  max_tokens: 2048
+  temperature: 0.1
+
+# Executor
+executor:
+  command: "claude"
+  working_dir: "."
+  timeout_seconds: 300
+
+# Git configuration
+git:
+  remote: "origin"
+  branch: "main"
+  protected_branches:
+    - "main"
+    - "master"
+    - "production"
+
+# Logging
+log_level: "INFO"
+log_to_file: true
+
+# Security
+security:
+  command_allowlist:
+    - "flutter"
+    - "dart"
+    - "python"
+    - "pip"
+    - "pytest"
+    - "dotnet"
+    - "git"
+    - "npm"
+    - "node"
+    - "pnpm"
+    - "yarn"
+
+  blocked_patterns:
+    - "rm -rf /"
+    - "format c:"
+    - "> /dev/sda"
+    - "dd if="
+    - ":(){ :|:& };:"
+
+# Checkpoint triggers (require human approval)
+checkpoint_triggers:
+  - "delete"
+  - "migration"
+  - "drop table"
+  - "force push"
+  - "reset --hard"
+  - "rebase"
+  - "infrastructure"
