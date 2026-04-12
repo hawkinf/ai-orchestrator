@@ -7,13 +7,13 @@ workspace_path: "./workspace"
 
 # Execution limits
 max_iterations: 3
-iteration_timeout_seconds: 300
-total_timeout_seconds: 1800
+iteration_timeout_seconds: 600
+total_timeout_seconds: 3600
 
 # Auto behaviors
-allow_auto_commit: false
+allow_auto_commit: true
 require_human_on_destructive: true
-auto_push_on_complete: false
+auto_push_on_complete: true
 
 # Validation commands by project type
 profiles:
@@ -45,22 +45,22 @@ profiles:
 # Current project profile
 active_profile: "generic"
 
-# Model configuration
+# OpenAI Models
 planner:
-  model_name: "gpt-4"
+  model_name: "gpt-4o"
   max_tokens: 4096
   temperature: 0.2
 
 reviewer:
-  model_name: "gpt-4"
+  model_name: "gpt-4o"
   max_tokens: 2048
   temperature: 0.1
 
-# Executor
+# Claude Executor
 executor:
   command: "claude"
   working_dir: "."
-  timeout_seconds: 300
+  timeout_seconds: 600
 
 # Git configuration
 git:
@@ -89,6 +89,8 @@ security:
     - "node"
     - "pnpm"
     - "yarn"
+    - "pwsh"
+    - "cmd"
 
   blocked_patterns:
     - "rm -rf /"
@@ -106,3 +108,10 @@ checkpoint_triggers:
   - "reset --hard"
   - "rebase"
   - "infrastructure"
+
+# Timeouts
+timeouts:
+  planner_seconds: 120
+  executor_seconds: 600
+  reviewer_seconds: 120
+  validation_seconds: 300

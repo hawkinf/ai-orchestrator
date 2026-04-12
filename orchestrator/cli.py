@@ -13,6 +13,7 @@ from .models import TaskStatus
 from .paths import OrchestratorPaths
 from .state_store import StateStore
 from .task_engine import TaskEngine
+from .integrated_engine import IntegratedTaskEngine
 
 
 app = typer.Typer(
@@ -24,10 +25,61 @@ console = Console()
 
 
 def get_engine(config_path: Optional[Path] = None) -> TaskEngine:
-    """Initialize and return the task engine."""
+    """Initialize and return the task engine (manual mode)."""
     config = load_config(config_path)
     paths = OrchestratorPaths(config.workspace_path)
     return TaskEngine(config, paths, manual_mode=True)
+
+
+def get_integrated_engine(config_path: Optional[Path] = None, mock: bool = False) -> IntegratedTaskEngine:
+    """Initialize and return the integrated task engine."""
+    config = load_config(config_path)
+    paths = OrchestratorPaths(config.workspace_path)
+    return IntegratedTaskEngine(config, paths, mock_executor=mock)
+
+
+@app.command()
+def run(
+    task: str = typer.Argument(..., help="Task description"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Project profile"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    mock: bool = typer.Option(False, "--mock", "-m", help="Use mock executor (no real Claude calls)"),
+):
+    """Run a fully automated task (OpenAI planner + Claude executor)."""
+    try:
+        engine = get_integrated_engine(config, mock=mock)
+    except Exception as e:
+        console.print(f"[red]Failed to initialize engine: {e}[/red]")
+        console.print("[yellow]Hint: Make sure OPENAI_API_KEY is set[/yellow]")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(Panel(
+        f"[bold cyan]Starting Integrated Run[/bold cyan]\n\n"
+        f"[bold]Task:[/bold] {task[:80]}{'...' if len(task) > 80 else ''}\n"
+        f"[bold]Profile:[/bold] {profile or 'default'}\n"
+        f"[bold]Mock:[/bold] {'Yes' if mock else 'No'}",
+        title="AI Orchestrator",
+    ))
+
+    state = engine.start(task, profile)
+
+    # Print final status
+    _print_status(state)
+
+    if state.status == TaskStatus.COMPLETED:
+        console.print()
+        console.print("[bold green]Task completed successfully![/bold green]")
+        if state.git_result_final and state.git_result_final.commit_hash:
+            console.print(f"Commit: [cyan]{state.git_result_final.commit_hash}[/cyan]")
+    elif state.status == TaskStatus.CHECKPOINT:
+        console.print()
+        console.print("[yellow]Task paused at checkpoint[/yellow]")
+        console.print(f"To continue: [cyan]python -m orchestrator.main approve {state.run_id}[/cyan]")
+    elif state.status == TaskStatus.FAILED:
+        console.print()
+        console.print(f"[red]Task failed: {state.error_message}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -36,13 +88,13 @@ def start(
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Project profile"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
-    """Start a new task run."""
+    """Start a new task run (manual mode - copy/paste workflow)."""
     engine = get_engine(config)
     state = engine.start(task, profile)
 
     console.print()
     console.print(Panel(
-        f"[bold green]Run Started[/bold green]\n\n"
+        f"[bold green]Run Started (Manual Mode)[/bold green]\n\n"
         f"[bold]Run ID:[/bold] {state.run_id}\n"
         f"[bold]Status:[/bold] {state.status.value}\n"
         f"[bold]Task:[/bold] {task[:80]}{'...' if len(task) > 80 else ''}",

@@ -55,22 +55,49 @@ cp config.yaml my_project_config.yaml
 
 ## Quick Start
 
-### 1. Start a new task
+### Option A: Integrated Mode (Recommended)
+
+Fully automated execution using OpenAI API and Claude Code CLI:
+
+```bash
+# Set your OpenAI API key
+set OPENAI_API_KEY=sk-your-key  # Windows
+export OPENAI_API_KEY=sk-your-key  # macOS/Linux
+
+# Run a task (fully automated)
+python -m orchestrator.main run "Fix the login validation bug"
+
+# With a specific profile
+python -m orchestrator.main run "Add logout button" --profile flutter
+
+# Test mode (no real Claude calls)
+python -m orchestrator.main run "Test task" --mock
+```
+
+The integrated mode will:
+
+1. Plan the task with OpenAI (GPT-4o)
+2. Execute with Claude Code CLI
+3. Review changes with OpenAI
+4. Run validation commands
+5. Commit and push (if configured)
+
+### Option B: Manual Mode
+
+For copy-paste workflow between AI models:
 
 ```bash
 python -m orchestrator.main start --task "Fix the login validation bug"
 ```
 
-### 2. Follow the manual workflow
-
-The orchestrator will generate prompts that you copy to your AI models:
+Then follow the manual workflow:
 
 1. Copy the planner prompt from `workspace/prompts/planner_<run_id>.txt`
 2. Paste into ChatGPT and get the JSON response
 3. Save the response to `workspace/prompts/planner_response.json`
 4. Resume: `python -m orchestrator.main resume --run-id <run_id>`
 
-### 3. Monitor and control
+### Monitor and Control
 
 ```bash
 # Check status
@@ -87,7 +114,8 @@ python -m orchestrator.main checkpoints
 
 | Command | Description |
 |---------|-------------|
-| `start --task "..."` | Start a new task run |
+| `run "task" [--profile P] [--mock]` | Run fully automated (OpenAI + Claude) |
+| `start --task "..."` | Start manual mode run |
 | `resume --run-id <id>` | Resume an existing run |
 | `status [--run-id <id>]` | Show status of run(s) |
 | `list [--limit N]` | List recent runs |
@@ -311,18 +339,18 @@ python -m pytest tests/ --cov=orchestrator
 
 ### Current Limitations
 
-1. **Manual Model Interaction**: Currently requires copy-paste between models (by design for V1)
-2. **Single Project**: Designed for one project at a time
-3. **No Parallel Runs**: One active run per project recommended
-4. **Windows Primary**: Tested primarily on Windows (macOS support pending)
+1. **Single Project**: Designed for one project at a time
+2. **No Parallel Runs**: One active run per project recommended
+3. **Windows Primary**: Tested primarily on Windows (macOS support pending)
+4. **Claude Code Required**: Integrated mode requires Claude Code CLI installed
 
 ### Planned Improvements
 
-1. API integration for planner/reviewer
-2. Web UI for monitoring
-3. Multi-project support
-4. macOS/Linux testing
-5. Webhook notifications
+1. Web UI for monitoring
+2. Multi-project support
+3. macOS/Linux testing
+4. Webhook notifications
+5. Additional executor backends
 
 ## Troubleshooting
 
