@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from .models import PlanResponse, ReviewResponse, ReviewStatus
 from .utils import parse_json_from_text
+from .env_validator import EnvironmentValidator, get_openai_key_or_raise
 
 
 class OpenAIClient:
@@ -25,9 +26,11 @@ class OpenAIClient:
         max_tokens: int = 4096,
         temperature: float = 0.2,
     ):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment")
+        # Use provided key or get from environment with better diagnostics
+        if api_key:
+            self.api_key = api_key
+        else:
+            self.api_key = get_openai_key_or_raise()
 
         self.client = OpenAI(api_key=self.api_key)
         self.model_name = model_name

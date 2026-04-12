@@ -1,5 +1,7 @@
 """Configuration panel for settings."""
 
+import sys
+from pathlib import Path
 from typing import Optional, List
 
 from PySide6.QtWidgets import (
@@ -10,6 +12,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal
 
 from .ui_models import SettingsViewModel
+
+# Add parent to path for imports
+parent_dir = Path(__file__).parent.parent
+if str(parent_dir) not in sys.path:
+    sys.path.insert(0, str(parent_dir))
 
 
 class ConfigPanel(QWidget):
@@ -67,6 +74,10 @@ class ConfigPanel(QWidget):
         # Security tab
         security_tab = self._create_security_tab()
         self.tabs.addTab(security_tab, "Seguranca")
+
+        # Environment tab (API Keys)
+        env_tab = self._create_environment_tab()
+        self.tabs.addTab(env_tab, "Ambiente")
 
         layout.addWidget(self.tabs)
 
@@ -398,6 +409,202 @@ class ConfigPanel(QWidget):
         layout.addWidget(scroll)
 
         return widget
+
+    def _create_environment_tab(self) -> QWidget:
+        """Create environment/API settings tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(16)
+
+        # OpenAI API Key Status
+        api_group = QGroupBox("OpenAI API Key")
+        api_layout = QVBoxLayout(api_group)
+
+        # Status row
+        status_row = QHBoxLayout()
+        status_row.addWidget(QLabel("Status:"))
+        self.api_status_label = QLabel("Verificando...")
+        self.api_status_label.setStyleSheet("font-weight: 600;")
+        status_row.addWidget(self.api_status_label)
+        status_row.addStretch()
+
+        refresh_btn = QPushButton("Atualizar")
+        refresh_btn.setFixedWidth(100)
+        refresh_btn.clicked.connect(self._check_api_key)
+        status_row.addWidget(refresh_btn)
+        api_layout.addLayout(status_row)
+
+        # Variable name row
+        var_row = QHBoxLayout()
+        var_row.addWidget(QLabel("Variavel:"))
+        self.api_var_label = QLabel("OPENAI_API_KEY")
+        self.api_var_label.setStyleSheet("color: #64748b; font-family: monospace;")
+        var_row.addWidget(self.api_var_label)
+        var_row.addStretch()
+        api_layout.addLayout(var_row)
+
+        # Source row
+        source_row = QHBoxLayout()
+        source_row.addWidget(QLabel("Fonte:"))
+        self.api_source_label = QLabel("-")
+        self.api_source_label.setStyleSheet("color: #64748b;")
+        source_row.addWidget(self.api_source_label)
+        source_row.addStretch()
+        api_layout.addLayout(source_row)
+
+        # .env row
+        dotenv_row = QHBoxLayout()
+        dotenv_row.addWidget(QLabel("Arquivo .env:"))
+        self.dotenv_label = QLabel("-")
+        self.dotenv_label.setStyleSheet("color: #64748b;")
+        dotenv_row.addWidget(self.dotenv_label)
+        dotenv_row.addStretch()
+        api_layout.addLayout(dotenv_row)
+
+        content_layout.addWidget(api_group)
+
+        # Test Engine button
+        test_group = QGroupBox("Teste de Engine")
+        test_layout = QVBoxLayout(test_group)
+
+        test_desc = QLabel(
+            "Testa a inicializacao do Planner e Reviewer (OpenAI).\n"
+            "Use para verificar se a configuracao esta correta."
+        )
+        test_desc.setStyleSheet("color: #64748b;")
+        test_desc.setWordWrap(True)
+        test_layout.addWidget(test_desc)
+
+        test_btn_row = QHBoxLayout()
+        self.test_engine_btn = QPushButton("Testar Engine")
+        self.test_engine_btn.setFixedWidth(150)
+        self.test_engine_btn.clicked.connect(self._test_engine)
+        test_btn_row.addWidget(self.test_engine_btn)
+        test_btn_row.addStretch()
+        test_layout.addLayout(test_btn_row)
+
+        self.test_result_label = QLabel("")
+        self.test_result_label.setWordWrap(True)
+        test_layout.addWidget(self.test_result_label)
+
+        content_layout.addWidget(test_group)
+
+        # Help section
+        help_group = QGroupBox("Como Configurar")
+        help_layout = QVBoxLayout(help_group)
+
+        help_text = QLabel("""
+<b>Windows PowerShell (temporario):</b><br/>
+<code>$env:OPENAI_API_KEY = "sk-sua-chave"</code><br/><br/>
+
+<b>Windows permanente:</b><br/>
+<code>[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-sua-chave", "User")</code><br/><br/>
+
+<b>Arquivo .env (na raiz do projeto):</b><br/>
+<code>OPENAI_API_KEY=sk-sua-chave</code><br/><br/>
+
+<b>Importante:</b> Apos definir a variavel, reinicie o VS Code/terminal.
+""")
+        from PySide6.QtCore import Qt
+        help_text.setTextFormat(Qt.TextFormat.RichText)
+        help_text.setStyleSheet("color: #64748b; font-size: 12px;")
+        help_text.setWordWrap(True)
+        help_layout.addWidget(help_text)
+
+        content_layout.addWidget(help_group)
+
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+
+        # Run initial check
+        self._check_api_key()
+
+        return widget
+
+    def _check_api_key(self):
+        """Check OpenAI API key status."""
+        try:
+            from orchestrator.env_validator import EnvironmentValidator, EnvKeyStatus
+
+            validator = EnvironmentValidator()
+            diag = validator.run_full_diagnostics()
+
+            # Update status
+            if diag.openai_key.status == EnvKeyStatus.OK:
+                self.api_status_label.setText("OK")
+                self.api_status_label.setStyleSheet("color: #22c55e; font-weight: 600;")
+                self.api_source_label.setText(diag.openai_key.source or "system")
+                if diag.openai_key.value_preview:
+                    self.api_var_label.setText(f"OPENAI_API_KEY = {diag.openai_key.value_preview}")
+            elif diag.openai_key.status == EnvKeyStatus.MISSING:
+                self.api_status_label.setText("NAO ENCONTRADA")
+                self.api_status_label.setStyleSheet("color: #ef4444; font-weight: 600;")
+                self.api_source_label.setText("-")
+            elif diag.openai_key.status == EnvKeyStatus.EMPTY:
+                self.api_status_label.setText("VAZIA")
+                self.api_status_label.setStyleSheet("color: #f59e0b; font-weight: 600;")
+                self.api_source_label.setText("-")
+
+            # Update .env status
+            if diag.dotenv_loaded and diag.dotenv_path:
+                self.dotenv_label.setText(f"Carregado: {diag.dotenv_path}")
+                self.dotenv_label.setStyleSheet("color: #22c55e;")
+            else:
+                self.dotenv_label.setText("Nao encontrado")
+                self.dotenv_label.setStyleSheet("color: #64748b;")
+
+        except Exception as e:
+            self.api_status_label.setText(f"ERRO: {e}")
+            self.api_status_label.setStyleSheet("color: #ef4444; font-weight: 600;")
+
+    def _test_engine(self):
+        """Test engine initialization."""
+        self.test_result_label.setText("Testando...")
+        self.test_result_label.setStyleSheet("color: #64748b;")
+        self.test_engine_btn.setEnabled(False)
+
+        try:
+            from orchestrator.openai_client import PlannerClient, ReviewerClient
+
+            # Try to create planner client
+            planner = PlannerClient()
+            self.test_result_label.setText("Planner OK, testando Reviewer...")
+
+            # Try to create reviewer client
+            reviewer = ReviewerClient()
+
+            self.test_result_label.setText(
+                "SUCESSO!\n\n"
+                "Planner e Reviewer inicializados corretamente.\n"
+                "A engine esta pronta para uso."
+            )
+            self.test_result_label.setStyleSheet("color: #22c55e;")
+
+        except EnvironmentError as e:
+            # API key issue
+            error_msg = str(e)
+            # Extract just the first line for display
+            first_line = error_msg.split("\n")[0]
+            self.test_result_label.setText(
+                f"FALHA: {first_line}\n\n"
+                "Verifique a aba 'Como Configurar' acima."
+            )
+            self.test_result_label.setStyleSheet("color: #ef4444;")
+
+        except Exception as e:
+            self.test_result_label.setText(f"ERRO: {e}")
+            self.test_result_label.setStyleSheet("color: #ef4444;")
+
+        finally:
+            self.test_engine_btn.setEnabled(True)
 
     def set_settings(self, settings: SettingsViewModel):
         """Load settings into the form."""

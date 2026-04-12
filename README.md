@@ -376,6 +376,90 @@ python -m pytest tests/ --cov=orchestrator --cov=gui
 4. Webhook notifications
 5. Additional executor backends
 
+## Configuring OpenAI API Key
+
+The orchestrator requires an OpenAI API key for the Planner and Reviewer components. There are several ways to configure it:
+
+### Option 1: Environment Variable (Windows)
+
+**Temporary (current session only):**
+
+```powershell
+# PowerShell
+$env:OPENAI_API_KEY = "sk-your-key-here"
+
+# CMD
+set OPENAI_API_KEY=sk-your-key-here
+```
+
+**Permanent (user level):**
+
+```powershell
+# PowerShell
+[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-your-key-here", "User")
+```
+
+Or via Windows Settings:
+1. Open Settings > System > About
+2. Click "Advanced system settings"
+3. Click "Environment Variables"
+4. Under "User variables", click "New"
+5. Variable name: `OPENAI_API_KEY`
+6. Variable value: `sk-your-key-here`
+
+**Important:** After setting environment variables, you must restart VS Code/terminal.
+
+### Option 2: .env File
+
+Create a file named `.env` in the project root:
+
+```bash
+OPENAI_API_KEY=sk-your-key-here
+```
+
+The application automatically loads this file on startup using python-dotenv.
+
+### Option 3: macOS/Linux
+
+```bash
+# Temporary
+export OPENAI_API_KEY=sk-your-key-here
+
+# Permanent (add to ~/.bashrc or ~/.zshrc)
+echo 'export OPENAI_API_KEY=sk-your-key-here' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Verifying Configuration (GUI)
+
+1. Open the GUI: `python -m gui.app`
+2. Go to **Configuracoes** > **Ambiente** tab
+3. Check the API Key status:
+   - **OK** (green): Key is configured correctly
+   - **NAO ENCONTRADA** (red): Key not found
+   - **VAZIA** (yellow): Key exists but is empty
+4. Click **Testar Engine** to verify full connectivity
+
+### Verifying Configuration (CLI)
+
+```bash
+# Check if key is set
+echo %OPENAI_API_KEY%  # Windows CMD
+echo $env:OPENAI_API_KEY  # PowerShell
+echo $OPENAI_API_KEY  # macOS/Linux
+
+# Test with a run (mock mode)
+python -m orchestrator.main run "Test task" --mock
+```
+
+### Common Issues
+
+| Issue | Cause | Solution |
+| ----- | ----- | -------- |
+| "OPENAI_API_KEY not found" | Variable not set | Set via environment or .env |
+| Key set but not working | Terminal not restarted | Close and reopen VS Code/terminal |
+| .env not loading | File not in project root | Move .env to same folder as config.yaml |
+
 ## Troubleshooting
 
 ### "Run not found"
