@@ -16,9 +16,12 @@ load_dotenv()
 
 class ModelConfig(BaseModel):
     """Configuration for an AI model."""
+    model_config = {"extra": "forbid"}
+
     model_name: str = "gpt-4"
     max_tokens: int = 4096
     temperature: float = 0.2
+    timeout_seconds: int = 120
 
 
 class ExecutorConfig(BaseModel):
@@ -52,6 +55,14 @@ class ProfileConfig(BaseModel):
     validation_commands: list[str] = Field(default_factory=list)
 
 
+class TimeoutConfig(BaseModel):
+    """Timeout configuration for various operations."""
+    planner_seconds: int = Field(default=120, ge=30, le=600)
+    executor_seconds: int = Field(default=600, ge=60, le=3600)
+    reviewer_seconds: int = Field(default=120, ge=30, le=600)
+    validation_seconds: int = Field(default=300, ge=60, le=1800)
+
+
 class OrchestratorConfig(BaseSettings):
     """Main orchestrator configuration."""
 
@@ -78,6 +89,7 @@ class OrchestratorConfig(BaseSettings):
     executor: ExecutorConfig = Field(default_factory=ExecutorConfig)
     git: GitConfig = Field(default_factory=GitConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    timeouts: TimeoutConfig = Field(default_factory=TimeoutConfig)
 
     # Profiles
     profiles: dict[str, ProfileConfig] = Field(default_factory=lambda: {
@@ -155,8 +167,12 @@ def load_config(config_path: Optional[Path] = None) -> OrchestratorConfig:
 
     Returns:
         Loaded configuration
+
+    Raises:
+        ConfigurationError: If config file has invalid fields or values
     """
     config_data: dict[str, Any] = {}
+    loaded_from: Optional[Path] = None
 
     # Try to load from file
     if config_path is None:
@@ -167,26 +183,78 @@ def load_config(config_path: Optional[Path] = None) -> OrchestratorConfig:
                 break
 
     if config_path and config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f) or {}
+        loaded_from = config_path
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            raise ConfigurationError(
+                f"Failed to parse YAML from {config_path}: {e}"
+            )
 
-    # Convert nested dicts to proper models
-    if "planner" in config_data:
-        config_data["planner"] = ModelConfig(**config_data["planner"])
-    if "reviewer" in config_data:
-        config_data["reviewer"] = ModelConfig(**config_data["reviewer"])
-    if "executor" in config_data:
-        config_data["executor"] = ExecutorConfig(**config_data["executor"])
-    if "git" in config_data:
-        config_data["git"] = GitConfig(**config_data["git"])
-    if "security" in config_data:
-        config_data["security"] = SecurityConfig(**config_data["security"])
+    # Convert nested dicts to proper models with helpful error messages
+    nested_configs = {
+        "planner": ModelConfig,
+        "reviewer": ModelConfig,
+        "executor": ExecutorConfig,
+        "git": GitConfig,
+        "security": SecurityConfig,
+        "timeouts": TimeoutConfig,
+    }
+
+    for key, model_class in nested_configs.items():
+        if key in config_data:
+            try:
+                config_data[key] = model_class(**config_data[key])
+            except Exception as e:
+                source = f" in {loaded_from}" if loaded_from else ""
+                raise ConfigurationError(
+                    f"Invalid '{key}' configuration{source}: {e}"
+                )
+
     if "profiles" in config_data:
-        config_data["profiles"] = {
-            k: ProfileConfig(**v) for k, v in config_data["profiles"].items()
-        }
+        try:
+            config_data["profiles"] = {
+                k: ProfileConfig(**v) for k, v in config_data["profiles"].items()
+            }
+        except Exception as e:
+            source = f" in {loaded_from}" if loaded_from else ""
+            raise ConfigurationError(
+                f"Invalid 'profiles' configuration{source}: {e}"
+            )
 
-    return OrchestratorConfig(**config_data)
+    try:
+        return OrchestratorConfig(**config_data)
+    except Exception as e:
+        source = f" from {loaded_from}" if loaded_from else ""
+        # Extract field name from Pydantic error if possible
+        error_msg = str(e)
+        if "Extra inputs are not permitted" in error_msg:
+            # Try to identify the unknown field from error like "Extra inputs are not permitted [type=extra_forbidden, input_value='value', input_type=str]"
+            # or from validation error details
+            import re
+            # Look for the field name in the error context
+            match = re.search(r"(\w+)\s+Extra inputs are not permitted", error_msg)
+            if not match:
+                # Try alternate pattern
+                match = re.search(r"'([^']+)'\s*\n\s*Extra inputs", error_msg)
+            if match:
+                field_name = match.group(1)
+                raise ConfigurationError(
+                    f"Unknown field '{field_name}' in config{source}. "
+                    f"Check if this field is supported or remove it from config.yaml"
+                )
+            else:
+                raise ConfigurationError(
+                    f"Config contains unknown fields{source}. "
+                    f"Check config.yaml for unsupported fields. Error: {error_msg}"
+                )
+        raise ConfigurationError(f"Failed to load config{source}: {e}")
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration loading or validation fails."""
+    pass
 
 
 # Global config instance (lazy loaded)

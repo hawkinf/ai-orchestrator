@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
 
         # Load preferences
         if self.paths:
-            self.settings_store = SettingsStore(self.paths.workspace_path)
+            self.settings_store = SettingsStore(self.paths.workspace_root)
             prefs = self.settings_store.load_preferences()
             self.resize(prefs.window_width, prefs.window_height)
             self.move(prefs.window_x, prefs.window_y)
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
 
         # Set workspace for log viewer
         if self.paths:
-            self.log_viewer.set_workspace_path(self.paths.workspace_path)
+            self.log_viewer.set_workspace_path(self.paths.workspace_root)
 
         # Check for pending checkpoints
         self._check_checkpoints()
