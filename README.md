@@ -4,7 +4,7 @@ Local orchestration system for AI-assisted development, coordinating planning, e
 
 ## Overview
 
-AI Orchestrator is a command-line tool that manages the development workflow between:
+AI Orchestrator is a desktop application and CLI that manages the development workflow between:
 
 - **Planner** (ChatGPT/Codex): Analyzes tasks and creates execution plans
 - **Executor** (Claude Code): Implements changes in the codebase
@@ -55,7 +55,25 @@ cp config.yaml my_project_config.yaml
 
 ## Quick Start
 
-### Option A: Integrated Mode (Recommended)
+### Option A: GUI Mode (Recommended)
+
+Launch the desktop application:
+
+```bash
+# Start the GUI
+python -m gui.app
+```
+
+The GUI provides:
+
+- **Nova Tarefa**: Create and submit tasks with full configuration
+- **Execucoes**: View run history and details
+- **Logs / Relatorios**: Browse logs and reports
+- **Configuracoes**: Edit settings visually
+- Checkpoint approval dialogs
+- Real-time progress updates
+
+### Option B: CLI Integrated Mode
 
 Fully automated execution using OpenAI API and Claude Code CLI:
 
@@ -82,7 +100,7 @@ The integrated mode will:
 4. Run validation commands
 5. Commit and push (if configured)
 
-### Option B: Manual Mode
+### Option C: CLI Manual Mode
 
 For copy-paste workflow between AI models:
 
@@ -236,41 +254,52 @@ python -m orchestrator.main resume --run-id <run_id>
 
 ```
 ai-orchestrator/
-├── orchestrator/
+├── orchestrator/              # Core orchestration engine
 │   ├── __init__.py
-│   ├── main.py              # Entry point
-│   ├── cli.py               # CLI commands
-│   ├── config.py            # Configuration management
-│   ├── models.py            # Pydantic data models
-│   ├── paths.py             # Path management
-│   ├── state_store.py       # State persistence
-│   ├── task_engine.py       # Main orchestration engine
-│   ├── prompt_builder.py    # Prompt generation
-│   ├── planner_client.py    # Planner model client
-│   ├── executor_client.py   # Executor client
-│   ├── reviewer_client.py   # Reviewer model client
-│   ├── report_parser.py     # Execution report parser
-│   ├── artifact_writer.py   # Artifact/report writer
-│   ├── checkpoint.py        # Checkpoint management
-│   ├── git_ops.py           # Git operations
-│   ├── logger.py            # Logging utilities
-│   └── utils.py             # Helper functions
+│   ├── main.py                # CLI entry point
+│   ├── cli.py                 # CLI commands
+│   ├── config.py              # Configuration management
+│   ├── models.py              # Pydantic data models
+│   ├── paths.py               # Path management
+│   ├── state_store.py         # State persistence
+│   ├── task_engine.py         # Manual orchestration engine
+│   ├── integrated_engine.py   # Automated orchestration engine
+│   ├── openai_client.py       # OpenAI API client
+│   ├── claude_executor.py     # Claude Code CLI executor
+│   ├── prompt_builder.py      # Prompt generation
+│   ├── report_parser.py       # Execution report parser
+│   ├── artifact_writer.py     # Artifact/report writer
+│   ├── checkpoint.py          # Checkpoint management
+│   ├── validation.py          # Validation runner
+│   ├── git_ops.py             # Git operations
+│   └── logger.py              # Logging utilities
+├── gui/                       # Desktop GUI (PySide6)
+│   ├── __init__.py
+│   ├── app.py                 # GUI entry point
+│   ├── main_window.py         # Main application window
+│   ├── task_panel.py          # Task creation panel
+│   ├── run_panel.py           # Run history/details panel
+│   ├── config_panel.py        # Settings panel
+│   ├── log_viewer.py          # Log viewer panel
+│   ├── checkpoint_dialog.py   # Checkpoint approval dialog
+│   ├── worker.py              # Background workers
+│   ├── settings_store.py      # UI preferences persistence
+│   ├── ui_models.py           # UI data models
+│   └── styles.py              # Styling and themes
 ├── prompts/
-│   ├── planner_system.txt   # Planner system prompt
-│   ├── reviewer_system.txt  # Reviewer system prompt
-│   └── executor_wrapper.txt # Executor wrapper prompt
+│   ├── planner_system.txt     # Planner system prompt
+│   └── reviewer_system.txt    # Reviewer system prompt
 ├── workspace/
-│   ├── tasks/               # Task definitions
-│   ├── runs/                # Run artifacts
-│   ├── prompts/             # Generated prompts
-│   ├── state/               # Persisted state
-│   └── logs/                # Log files
+│   ├── runs/                  # Run artifacts
+│   ├── state/                 # Persisted state
+│   └── logs/                  # Log files
 ├── tests/
 │   ├── test_state_store.py
 │   ├── test_prompt_builder.py
 │   ├── test_report_parser.py
 │   ├── test_checkpoint.py
-│   └── test_git_ops.py
+│   ├── test_git_ops.py
+│   └── test_gui_smoke.py      # GUI smoke tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example
@@ -314,25 +343,20 @@ executor:
   timeout_seconds: 600
 ```
 
-### Using API-based Models
-
-For direct API integration (requires additional setup):
-
-1. Set `OPENAI_API_KEY` in `.env`
-2. Modify `planner_client.py` and `reviewer_client.py` to use API calls
-3. Set `manual_mode=False` when creating `TaskEngine`
-
 ## Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (66 tests)
 python -m pytest tests/
 
-# Run specific test
-python -m pytest tests/test_state_store.py -v
+# Run core tests
+python -m pytest tests/test_state_store.py tests/test_checkpoint.py -v
+
+# Run GUI smoke tests
+python -m pytest tests/test_gui_smoke.py -v
 
 # Run with coverage
-python -m pytest tests/ --cov=orchestrator
+python -m pytest tests/ --cov=orchestrator --cov=gui
 ```
 
 ## Limitations
