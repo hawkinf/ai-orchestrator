@@ -1,8 +1,10 @@
 """Main application window."""
 
+import logging
 import os
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -167,6 +169,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config=None, paths=None):
         super().__init__()
 
+        self.logger = logging.getLogger("ai_orchestrator.gui")
         self.config = config
         self.paths = paths
         self.engine = None
@@ -175,10 +178,18 @@ class MainWindow(QMainWindow):
         self.worker_manager = WorkerManager()
         self._current_run_id: Optional[str] = None
 
-        self._setup_window()
-        self._setup_ui()
-        self._connect_signals()
-        self._load_initial_data()
+        self.logger.info("Initializing MainWindow...")
+
+        try:
+            self._setup_window()
+            self._setup_ui()
+            self._connect_signals()
+            self._load_initial_data()
+            self.logger.info("MainWindow initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Error initializing MainWindow: {e}")
+            self.logger.debug(traceback.format_exc())
+            raise
 
     def _setup_window(self):
         """Setup window properties."""
@@ -302,16 +313,23 @@ class MainWindow(QMainWindow):
     def _init_engine(self):
         """Initialize the orchestration engine."""
         if not self.config or not self.paths:
+            self.logger.warning("Cannot initialize engine: config or paths is None")
             return
 
         try:
+            self.logger.info("Initializing orchestration engine...")
+
             # Import here to avoid circular imports
             from orchestrator.integrated_engine import IntegratedTaskEngine
             from orchestrator.state_store import StateStore
 
             self.engine = IntegratedTaskEngine(self.config, self.paths, mock_executor=False)
             self.store = StateStore(self.paths)
+
+            self.logger.info("Engine initialized successfully")
         except Exception as e:
+            self.logger.error(f"Failed to initialize engine: {e}")
+            self.logger.debug(traceback.format_exc())
             QMessageBox.warning(
                 self,
                 "Aviso",
@@ -341,7 +359,10 @@ class MainWindow(QMainWindow):
     @Slot(TaskConfig)
     def _on_task_submitted(self, config: TaskConfig):
         """Handle task submission."""
+        self.logger.info(f"Task submitted: {config.task_description[:50]}...")
+
         if not self.engine:
+            self.logger.error("Cannot submit task: engine not initialized")
             QMessageBox.warning(
                 self,
                 "Erro",
@@ -349,20 +370,34 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Update status
-        self.status_widget.set_loading(True)
-        self.status_widget.set_run("...", "iniciando", "preparando", 0)
+        try:
+            # Update status
+            self.status_widget.set_loading(True)
+            self.status_widget.set_run("...", "iniciando", "preparando", 0)
 
-        # Start worker
-        worker = self.worker_manager.start_task(self.engine, config)
-        worker.signals.started.connect(self._on_worker_started)
-        worker.signals.progress.connect(self._on_worker_progress)
-        worker.signals.finished.connect(self._on_worker_finished)
-        worker.signals.error.connect(self._on_worker_error)
+            # Start worker
+            worker = self.worker_manager.start_task(self.engine, config)
+            if worker:
+                worker.signals.started.connect(self._on_worker_started)
+                worker.signals.progress.connect(self._on_worker_progress)
+                worker.signals.finished.connect(self._on_worker_finished)
+                worker.signals.error.connect(self._on_worker_error)
+                self.logger.info("Task worker started")
+            else:
+                self.logger.error("Failed to create task worker")
+                self.status_widget.set_loading(False)
+                QMessageBox.warning(self, "Erro", "Falha ao iniciar tarefa.")
+                return
 
-        # Save to recent
-        if self.settings_store:
-            self.settings_store.add_recent_task(config.task_description)
+            # Save to recent
+            if self.settings_store:
+                self.settings_store.add_recent_task(config.task_description)
+
+        except Exception as e:
+            self.logger.error(f"Error submitting task: {e}")
+            self.logger.debug(traceback.format_exc())
+            self.status_widget.set_loading(False)
+            QMessageBox.critical(self, "Erro", f"Erro ao iniciar tarefa:\n\n{e}")
 
     @Slot(str)
     def _on_worker_started(self, run_id: str):
@@ -412,39 +447,59 @@ class MainWindow(QMainWindow):
     def _refresh_runs(self):
         """Refresh the runs list."""
         if not self.store:
+            self.logger.debug("Cannot refresh runs: store is None")
+            self.run_panel.set_runs([])  # Show empty list
             return
 
         try:
+            self.logger.debug("Refreshing runs list...")
             runs_data = self.store.list_runs(limit=50)
             runs = []
 
             for run_info in runs_data:
-                state = self.store.load_state(run_info["run_id"])
-                if state:
-                    runs.append(RunListItem(
-                        run_id=state.run_id,
-                        task_summary=state.task.description,
-                        status=state.status.value,
-                        created_at=state.created_at,
-                        current_iteration=state.current_iteration,
-                        phase=state.status.value,
-                        has_checkpoint=state.checkpoint is not None and not state.checkpoint.resolved,
-                        error_message=state.error_message,
-                    ))
+                try:
+                    state = self.store.load_state(run_info["run_id"])
+                    if state and state.task:
+                        runs.append(RunListItem(
+                            run_id=state.run_id,
+                            task_summary=state.task.description or "(sem descricao)",
+                            status=state.status.value if state.status else "unknown",
+                            created_at=state.created_at,
+                            current_iteration=state.current_iteration or 0,
+                            phase=state.status.value if state.status else "unknown",
+                            has_checkpoint=state.checkpoint is not None and not state.checkpoint.resolved,
+                            error_message=state.error_message,
+                        ))
+                except Exception as run_error:
+                    self.logger.warning(f"Error loading run {run_info.get('run_id')}: {run_error}")
 
             self.run_panel.set_runs(runs)
+            self.logger.debug(f"Loaded {len(runs)} runs")
         except Exception as e:
-            print(f"Error refreshing runs: {e}")
+            self.logger.error(f"Error refreshing runs: {e}")
+            self.logger.debug(traceback.format_exc())
+            self.run_panel.set_runs([])  # Show empty list on error
 
     @Slot(str)
     def _on_run_selected(self, run_id: str):
         """Handle run selection."""
         if not self.store:
+            self.logger.warning("Cannot load run detail: store is None")
+            return
+
+        if not run_id:
+            self.logger.warning("Cannot load run detail: run_id is empty")
             return
 
         try:
+            self.logger.debug(f"Loading run detail: {run_id}")
             state = self.store.load_state(run_id)
             if not state:
+                self.logger.warning(f"Run not found: {run_id}")
+                return
+
+            if not state.task:
+                self.logger.warning(f"Run has no task: {run_id}")
                 return
 
             # Build view model
@@ -502,9 +557,11 @@ class MainWindow(QMainWindow):
             detail.error_message = state.error_message
 
             self.run_panel.set_run_detail(detail)
+            self.logger.debug(f"Run detail loaded: {run_id}")
 
         except Exception as e:
-            print(f"Error loading run detail: {e}")
+            self.logger.error(f"Error loading run detail: {e}")
+            self.logger.debug(traceback.format_exc())
 
     @Slot(str)
     def _on_resume_run(self, run_id: str):
@@ -582,7 +639,8 @@ class MainWindow(QMainWindow):
                     )
                     self.checkpoint_area.addWidget(notif)
         except Exception as e:
-            print(f"Error checking checkpoints: {e}")
+            self.logger.error(f"Error checking checkpoints: {e}")
+            self.logger.debug(traceback.format_exc())
 
     def _show_checkpoint_dialog(self, run_id: str):
         """Show checkpoint dialog for a run."""

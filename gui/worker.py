@@ -1,5 +1,7 @@
 """Background worker for async task execution."""
 
+import logging
+import traceback
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
@@ -7,6 +9,8 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, Signal, QRunnable, QThreadPool
 
 from .ui_models import ProgressEvent, ProgressEventType, TaskConfig
+
+logger = logging.getLogger("ai_orchestrator.worker")
 
 
 class TaskWorkerSignals(QObject):
@@ -30,6 +34,7 @@ class TaskWorker(QRunnable):
     def run(self):
         """Execute the task in background thread."""
         run_id = None
+        logger.info(f"TaskWorker starting: {self.task_config.task_description[:50]}...")
         try:
             # Emit start
             self.signals.progress.emit(ProgressEvent(
@@ -44,6 +49,7 @@ class TaskWorker(QRunnable):
                 self.task_config.profile,
             )
             run_id = state.run_id
+            logger.info(f"Task started with run_id: {run_id}")
             self.signals.started.emit(run_id)
 
             # Emit completion
@@ -78,6 +84,8 @@ class TaskWorker(QRunnable):
 
         except Exception as e:
             error_msg = str(e)
+            logger.error(f"TaskWorker error: {error_msg}")
+            logger.debug(traceback.format_exc())
             self.signals.progress.emit(ProgressEvent(
                 event_type=ProgressEventType.ERROR,
                 message=f"Erro: {error_msg}",
