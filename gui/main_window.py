@@ -27,6 +27,7 @@ from .config_panel import ConfigPanel
 from .log_viewer import LogViewer
 from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
 from .worker import WorkerManager, TaskWorker
+from .help_panel import HelpPanel
 
 
 class Sidebar(QFrame):
@@ -62,6 +63,7 @@ class Sidebar(QFrame):
             ("runs", "Execucoes"),
             ("logs", "Logs / Relatorios"),
             ("settings", "Configuracoes"),
+            ("help", "Ajuda"),
         ]
 
         for key, label in nav_items:
@@ -237,6 +239,9 @@ class MainWindow(QMainWindow):
         self.config_panel = ConfigPanel()
         self.stack.addWidget(self.config_panel)
 
+        self.help_panel = HelpPanel()
+        self.stack.addWidget(self.help_panel)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -249,7 +254,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "runs", "logs", "settings"]:
+        for key in ["new_task", "runs", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -320,6 +325,7 @@ class MainWindow(QMainWindow):
             "runs": 1,
             "logs": 2,
             "settings": 3,
+            "help": 4,
         }
 
         if key in page_map:
