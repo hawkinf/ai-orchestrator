@@ -9,6 +9,8 @@ from typing import Optional, Tuple
 
 from dotenv import load_dotenv
 
+from .env_file import get_env_resolution, mask_secret, EnvResolution
+
 
 class EnvKeyStatus(Enum):
     """Status of an environment variable."""
@@ -37,6 +39,7 @@ class EnvironmentDiagnostics:
     dotenv_loaded: bool
     dotenv_path: Optional[Path] = None
     system_info: Optional[str] = None
+    resolution: Optional[EnvResolution] = None
 
     @property
     def is_ready(self) -> bool:
@@ -117,6 +120,9 @@ class EnvironmentValidator:
         # Validate key
         openai_result = self.validate_openai_key()
 
+        # Get detailed resolution
+        resolution = get_env_resolution(self.OPENAI_KEY_NAME, dotenv_path)
+
         # System info
         system_info = f"Python {sys.version_info.major}.{sys.version_info.minor} on {sys.platform}"
 
@@ -125,6 +131,7 @@ class EnvironmentValidator:
             dotenv_loaded=dotenv_loaded,
             dotenv_path=dotenv_path,
             system_info=system_info,
+            resolution=resolution,
         )
 
     def get_help_message(self, result: EnvValidationResult) -> str:

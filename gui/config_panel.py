@@ -412,6 +412,8 @@ class ConfigPanel(QWidget):
 
     def _create_environment_tab(self) -> QWidget:
         """Create environment/API settings tab."""
+        from PySide6.QtCore import Qt
+
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
@@ -434,32 +436,35 @@ class ConfigPanel(QWidget):
         self.api_status_label.setStyleSheet("font-weight: 600;")
         status_row.addWidget(self.api_status_label)
         status_row.addStretch()
-
-        refresh_btn = QPushButton("Atualizar")
-        refresh_btn.setFixedWidth(100)
-        refresh_btn.clicked.connect(self._check_api_key)
-        status_row.addWidget(refresh_btn)
         api_layout.addLayout(status_row)
-
-        # Variable name row
-        var_row = QHBoxLayout()
-        var_row.addWidget(QLabel("Variavel:"))
-        self.api_var_label = QLabel("OPENAI_API_KEY")
-        self.api_var_label.setStyleSheet("color: #64748b; font-family: monospace;")
-        var_row.addWidget(self.api_var_label)
-        var_row.addStretch()
-        api_layout.addLayout(var_row)
 
         # Source row
         source_row = QHBoxLayout()
-        source_row.addWidget(QLabel("Fonte:"))
+        source_row.addWidget(QLabel("Origem:"))
         self.api_source_label = QLabel("-")
         self.api_source_label.setStyleSheet("color: #64748b;")
         source_row.addWidget(self.api_source_label)
         source_row.addStretch()
         api_layout.addLayout(source_row)
 
-        # .env row
+        # Priority note row
+        priority_row = QHBoxLayout()
+        self.api_priority_label = QLabel("")
+        self.api_priority_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self.api_priority_label.setWordWrap(True)
+        priority_row.addWidget(self.api_priority_label)
+        api_layout.addLayout(priority_row)
+
+        # Current value preview row
+        preview_row = QHBoxLayout()
+        preview_row.addWidget(QLabel("Valor atual:"))
+        self.api_preview_label = QLabel("-")
+        self.api_preview_label.setStyleSheet("color: #64748b; font-family: monospace;")
+        preview_row.addWidget(self.api_preview_label)
+        preview_row.addStretch()
+        api_layout.addLayout(preview_row)
+
+        # .env file row
         dotenv_row = QHBoxLayout()
         dotenv_row.addWidget(QLabel("Arquivo .env:"))
         self.dotenv_label = QLabel("-")
@@ -467,6 +472,57 @@ class ConfigPanel(QWidget):
         dotenv_row.addWidget(self.dotenv_label)
         dotenv_row.addStretch()
         api_layout.addLayout(dotenv_row)
+
+        # Separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("color: #e2e8f0;")
+        api_layout.addWidget(separator)
+
+        # API Key input section
+        input_label = QLabel("Editar/Salvar API Key no .env:")
+        input_label.setStyleSheet("font-weight: 600; margin-top: 8px;")
+        api_layout.addWidget(input_label)
+
+        # Input row
+        input_row = QHBoxLayout()
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setPlaceholderText("sk-...")
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        input_row.addWidget(self.api_key_input)
+
+        self.show_key_btn = QPushButton("Mostrar")
+        self.show_key_btn.setFixedWidth(70)
+        self.show_key_btn.setCheckable(True)
+        self.show_key_btn.toggled.connect(self._toggle_key_visibility)
+        input_row.addWidget(self.show_key_btn)
+        api_layout.addLayout(input_row)
+
+        # Action buttons row
+        actions_row = QHBoxLayout()
+
+        save_env_btn = QPushButton("Salvar no .env")
+        save_env_btn.setFixedWidth(120)
+        save_env_btn.clicked.connect(self._save_api_key_to_env)
+        actions_row.addWidget(save_env_btn)
+
+        refresh_btn = QPushButton("Recarregar")
+        refresh_btn.setFixedWidth(100)
+        refresh_btn.clicked.connect(self._check_api_key)
+        actions_row.addWidget(refresh_btn)
+
+        clear_btn = QPushButton("Limpar")
+        clear_btn.setFixedWidth(70)
+        clear_btn.clicked.connect(lambda: self.api_key_input.clear())
+        actions_row.addWidget(clear_btn)
+
+        actions_row.addStretch()
+        api_layout.addLayout(actions_row)
+
+        # Save status
+        self.save_status_label = QLabel("")
+        self.save_status_label.setWordWrap(True)
+        api_layout.addWidget(self.save_status_label)
 
         content_layout.addWidget(api_group)
 
@@ -529,10 +585,80 @@ class ConfigPanel(QWidget):
 
         return widget
 
+    def _toggle_key_visibility(self, show: bool):
+        """Toggle API key visibility in input field."""
+        if show:
+            self.api_key_input.setEchoMode(QLineEdit.EchoMode.Normal)
+            self.show_key_btn.setText("Ocultar")
+        else:
+            self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+            self.show_key_btn.setText("Mostrar")
+
+    def _save_api_key_to_env(self):
+        """Save API key to .env file."""
+        key_value = self.api_key_input.text().strip()
+
+        if not key_value:
+            self.save_status_label.setText("Digite uma chave para salvar.")
+            self.save_status_label.setStyleSheet("color: #f59e0b;")
+            return
+
+        # Validate key format (basic check)
+        if not key_value.startswith("sk-"):
+            reply = QMessageBox.question(
+                self,
+                "Formato da Chave",
+                "A chave nao comeca com 'sk-'. Chaves OpenAI geralmente comecam com 'sk-'.\n\n"
+                "Deseja salvar mesmo assim?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        try:
+            from pathlib import Path
+            from orchestrator.env_file import upsert_env_var, create_env_file_if_missing, mask_secret
+
+            # Determine .env path
+            env_path = Path.cwd() / ".env"
+
+            # Create .env if missing
+            create_env_file_if_missing(env_path)
+
+            # Save key
+            success = upsert_env_var(env_path, "OPENAI_API_KEY", key_value)
+
+            if success:
+                masked = mask_secret(key_value)
+                self.save_status_label.setText(
+                    f"Chave salva com sucesso em {env_path}\n"
+                    f"Valor: {masked}"
+                )
+                self.save_status_label.setStyleSheet("color: #22c55e;")
+
+                # Clear input for security
+                self.api_key_input.clear()
+
+                # Reload environment and refresh status
+                from dotenv import load_dotenv
+                load_dotenv(env_path, override=True)
+                self._check_api_key()
+            else:
+                self.save_status_label.setText(
+                    f"Erro ao salvar em {env_path}\n"
+                    "Verifique permissoes de escrita."
+                )
+                self.save_status_label.setStyleSheet("color: #ef4444;")
+
+        except Exception as e:
+            self.save_status_label.setText(f"Erro: {e}")
+            self.save_status_label.setStyleSheet("color: #ef4444;")
+
     def _check_api_key(self):
         """Check OpenAI API key status."""
         try:
             from orchestrator.env_validator import EnvironmentValidator, EnvKeyStatus
+            from orchestrator.env_file import mask_secret
 
             validator = EnvironmentValidator()
             diag = validator.run_full_diagnostics()
@@ -541,25 +667,59 @@ class ConfigPanel(QWidget):
             if diag.openai_key.status == EnvKeyStatus.OK:
                 self.api_status_label.setText("OK")
                 self.api_status_label.setStyleSheet("color: #22c55e; font-weight: 600;")
-                self.api_source_label.setText(diag.openai_key.source or "system")
-                if diag.openai_key.value_preview:
-                    self.api_var_label.setText(f"OPENAI_API_KEY = {diag.openai_key.value_preview}")
             elif diag.openai_key.status == EnvKeyStatus.MISSING:
                 self.api_status_label.setText("NAO ENCONTRADA")
                 self.api_status_label.setStyleSheet("color: #ef4444; font-weight: 600;")
-                self.api_source_label.setText("-")
             elif diag.openai_key.status == EnvKeyStatus.EMPTY:
                 self.api_status_label.setText("VAZIA")
                 self.api_status_label.setStyleSheet("color: #f59e0b; font-weight: 600;")
-                self.api_source_label.setText("-")
 
-            # Update .env status
-            if diag.dotenv_loaded and diag.dotenv_path:
-                self.dotenv_label.setText(f"Carregado: {diag.dotenv_path}")
-                self.dotenv_label.setStyleSheet("color: #22c55e;")
+            # Update source and priority info from resolution
+            if diag.resolution:
+                res = diag.resolution
+                if res.source == "system":
+                    self.api_source_label.setText("Variavel de sistema")
+                    self.api_source_label.setStyleSheet("color: #22c55e;")
+                elif res.source == "dotenv":
+                    self.api_source_label.setText(f"Arquivo .env")
+                    self.api_source_label.setStyleSheet("color: #3b82f6;")
+                else:
+                    self.api_source_label.setText("-")
+                    self.api_source_label.setStyleSheet("color: #64748b;")
+
+                self.api_priority_label.setText(res.priority_note)
+
+                # Show value preview
+                if res.value:
+                    self.api_preview_label.setText(mask_secret(res.value))
+                else:
+                    self.api_preview_label.setText("-")
+
+                # Show .env file path
+                if res.dotenv_path:
+                    self.dotenv_label.setText(str(res.dotenv_path))
+                    if res.dotenv_value:
+                        self.dotenv_label.setStyleSheet("color: #22c55e;")
+                    else:
+                        self.dotenv_label.setStyleSheet("color: #64748b;")
+                else:
+                    self.dotenv_label.setText("Nao encontrado")
+                    self.dotenv_label.setStyleSheet("color: #64748b;")
             else:
-                self.dotenv_label.setText("Nao encontrado")
-                self.dotenv_label.setStyleSheet("color: #64748b;")
+                # Fallback if no resolution
+                self.api_source_label.setText(diag.openai_key.source or "-")
+                self.api_priority_label.setText("")
+                if diag.openai_key.value_preview:
+                    self.api_preview_label.setText(diag.openai_key.value_preview)
+                else:
+                    self.api_preview_label.setText("-")
+
+                if diag.dotenv_loaded and diag.dotenv_path:
+                    self.dotenv_label.setText(str(diag.dotenv_path))
+                    self.dotenv_label.setStyleSheet("color: #22c55e;")
+                else:
+                    self.dotenv_label.setText("Nao encontrado")
+                    self.dotenv_label.setStyleSheet("color: #64748b;")
 
         except Exception as e:
             self.api_status_label.setText(f"ERRO: {e}")
