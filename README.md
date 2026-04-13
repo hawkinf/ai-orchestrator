@@ -467,6 +467,126 @@ gui/checkpoints_models.py         - UI state models
 
 Checkpoint Center reads from existing state files and uses the core CheckpointManager for actions - no duplication of business logic.
 
+## Policy Engine
+
+The Policy Engine enables automated decision-making for checkpoints based on configurable rules. Access via **Politicas** in the sidebar.
+
+### Overview
+
+Instead of manually approving every checkpoint, you can define rules that automatically:
+
+- **Approve** low-risk checkpoints
+- **Reject** dangerous patterns
+- **Require Human** approval for critical operations
+
+### Default Rules
+
+The system includes built-in safety rules (cannot be deleted):
+
+| Rule | Action | Trigger |
+|------|--------|---------|
+| **Require Human for Critical** | Require Human | Severity = critical |
+| **Require Human for Delete** | Require Human | has_delete = true |
+| **Require Human for Migrations** | Require Human | has_migration = true |
+| **Require Human for Destructive Git** | Require Human | checkpoint.type = git_destructive |
+| **Require Human for Infrastructure** | Require Human | checkpoint.type = infrastructure_change |
+| **Require Human for Architecture** | Require Human | checkpoint.type = architecture_rewrite |
+| **Reject Repeated Failures** | Reject | failure_count > 5 (disabled) |
+| **Auto-approve Low Risk Manual** | Approve | type = manual_request, severity = info (disabled) |
+| **Auto-approve Small Safe Commands** | Approve | type = command_not_allowed, files < 5 (disabled) |
+
+### Creating Custom Rules
+
+1. Go to **Politicas** > **Rules** tab
+2. Click **New Rule**
+3. Configure:
+   - **ID**: Unique identifier (e.g., `my_approve_tests`)
+   - **Name**: Display name
+   - **Description**: What the rule does
+   - **Action**: Approve, Reject, or Require Human
+   - **Priority**: Lower = higher priority (evaluated first)
+   - **Conditions**: All must match for rule to apply
+
+### Available Conditions
+
+| Field | Description | Example Values |
+|-------|-------------|----------------|
+| `checkpoint.type` | Checkpoint reason | manual_request, git_destructive, infrastructure_change |
+| `checkpoint.severity` | Severity level | info, warning, high_risk, critical |
+| `has_delete` | Delete operation detected | true/false |
+| `has_migration` | Migration detected | true/false |
+| `has_force_push` | Force push detected | true/false |
+| `has_destructive_git` | Destructive git operation | true/false |
+| `affected_files_count` | Number of affected files | Any number |
+| `git_diff_size` | Lines changed | Any number |
+| `failure_count` | Execution failures | Any number |
+| `command_name` | Command being executed | Any string |
+| `project_type` | Project type | flutter, python, generic |
+
+### Condition Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `equals` | Exact match (case-insensitive for strings) | severity equals "warning" |
+| `not_equals` | Does not match | type not_equals "critical" |
+| `contains` | String contains | description contains "test" |
+| `in` | Value in list | severity in ["info", "warning"] |
+| `greater_than` | Numeric comparison | affected_files_count > 10 |
+| `less_than` | Numeric comparison | git_diff_size < 100 |
+| `is_true` | Boolean true | has_delete is_true |
+| `is_false` | Boolean false | has_migration is_false |
+| `exists` | Field exists | command_name exists |
+| `matches_regex` | Regex match | description matches_regex "test.*" |
+
+### Decision History
+
+The **Decision History** tab shows all policy decisions:
+
+- Checkpoint ID
+- Rule that matched (or "no match")
+- Decision (Approve/Reject/Require Human)
+- Whether it was overridden
+- Timestamp
+
+### Statistics
+
+The top bar shows real-time statistics:
+
+| Metric | Description |
+|--------|-------------|
+| **Total Decisions** | All policy decisions made |
+| **Auto-Approved** | Automatically approved |
+| **Auto-Rejected** | Automatically rejected |
+| **Required Human** | Required manual approval |
+| **Override Rate** | Percentage of decisions overridden |
+
+### Rule Evaluation
+
+Rules are evaluated in priority order (lower number = higher priority):
+
+1. Only enabled rules are considered
+2. All conditions in a rule must match
+3. First matching rule determines the action
+4. If no rule matches, defaults to **Require Human**
+
+### Architecture
+
+```
+orchestrator/policy_models.py   - Data models (Rule, Decision, Context)
+orchestrator/policy_store.py    - Persistence (rules.json, history.json)
+orchestrator/policy_engine.py   - Evaluation engine
+gui/policy_panel.py             - Visual panel (PySide6)
+```
+
+Policy decisions are stored in `workspace/policies/`:
+
+```
+workspace/policies/
+├── rules.json      - All policy rules
+├── history.json    - Decision history (last 1000)
+└── stats.json      - Aggregated statistics
+```
+
 ## Diagnostics Panel
 
 The Diagnostics Panel provides a pre-flight check system to verify all components are operational before running tasks. Access it via **Diagnostico** in the sidebar.
@@ -551,6 +671,9 @@ ai-orchestrator/
 │   ├── diagnostics.py         # System diagnostics
 │   ├── run_index.py           # Run aggregation for dashboard
 │   ├── checkpoint_index.py    # Checkpoint aggregation for center
+│   ├── policy_engine.py       # Policy evaluation engine
+│   ├── policy_models.py       # Policy data models
+│   ├── policy_store.py        # Policy persistence
 │   └── logger.py              # Logging utilities
 ├── gui/                       # Desktop GUI (PySide6)
 │   ├── __init__.py
@@ -570,6 +693,7 @@ ai-orchestrator/
 │   ├── checkpoints_panel.py   # Checkpoint center panel UI
 │   ├── checkpoints_worker.py  # Checkpoint center background workers
 │   ├── checkpoints_models.py  # Checkpoint center UI state models
+│   ├── policy_panel.py        # Policy management panel UI
 │   ├── worker.py              # Background workers
 │   ├── settings_store.py      # UI preferences persistence
 │   ├── ui_models.py           # UI data models
@@ -592,7 +716,8 @@ ai-orchestrator/
 │   ├── test_run_index.py      # Run index tests
 │   ├── test_dashboard.py      # Dashboard tests
 │   ├── test_checkpoint_index.py  # Checkpoint index tests
-│   └── test_checkpoints_panel.py # Checkpoint center tests
+│   ├── test_checkpoints_panel.py # Checkpoint center tests
+│   └── test_policy_engine.py     # Policy engine tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example

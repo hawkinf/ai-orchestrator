@@ -11,6 +11,16 @@ from .integrated_engine import IntegratedTaskEngine
 from .openai_client import PlannerClient, ReviewerClient
 from .claude_executor import ClaudeExecutor, MockClaudeExecutor
 from .validation import ValidationRunner
+from .checkpoint_index import CheckpointIndex, CheckpointSummary, CheckpointFilter
+from .policy_engine import PolicyEngine, get_policy_engine
+from .policy_models import (
+    PolicyAction,
+    PolicyRule,
+    PolicyDecision,
+    PolicyCondition,
+    CheckpointContext,
+)
+from .policy_store import PolicyStore
 
 __all__ = [
     "OrchestratorConfig",
@@ -26,4 +36,15 @@ __all__ = [
     "ClaudeExecutor",
     "MockClaudeExecutor",
     "ValidationRunner",
+    "CheckpointIndex",
+    "CheckpointSummary",
+    "CheckpointFilter",
+    "PolicyEngine",
+    "get_policy_engine",
+    "PolicyAction",
+    "PolicyRule",
+    "PolicyDecision",
+    "PolicyCondition",
+    "CheckpointContext",
+    "PolicyStore",
 ]

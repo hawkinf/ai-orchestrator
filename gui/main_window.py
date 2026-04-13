@@ -33,6 +33,7 @@ from .help_panel import HelpPanel
 from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
 from .checkpoints_panel import CheckpointsPanel
+from .policy_panel import PolicyPanel
 
 
 class Sidebar(QFrame):
@@ -67,6 +68,7 @@ class Sidebar(QFrame):
             ("new_task", "Nova Tarefa"),
             ("dashboard", "Central de Runs"),
             ("checkpoints", "Checkpoints"),
+            ("policies", "Politicas"),
             ("runs", "Execucoes"),
             ("diagnostics", "Diagnostico"),
             ("logs", "Logs / Relatorios"),
@@ -271,6 +273,11 @@ class MainWindow(QMainWindow):
         self.checkpoints_panel = CheckpointsPanel()
         self.stack.addWidget(self.checkpoints_panel)
 
+        # Policy panel placeholder - initialized in _load_initial_data
+        self.policy_panel = None
+        self._policy_placeholder = QWidget()
+        self.stack.addWidget(self._policy_placeholder)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -283,7 +290,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "dashboard", "checkpoints", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["new_task", "dashboard", "checkpoints", "policies", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -357,6 +364,10 @@ class MainWindow(QMainWindow):
         if self.config:
             self.checkpoints_panel.set_config(self.config)
 
+        # Initialize policy panel
+        if self.paths:
+            self._init_policy_panel()
+
     def _init_engine(self):
         """Initialize the orchestration engine."""
         if not self.config or not self.paths:
@@ -378,6 +389,7 @@ class MainWindow(QMainWindow):
             self._config_path = self.paths.workspace_root / "config.yaml"
 
             self.logger.info("Engine initialized successfully")
+
         except Exception as e:
             self.logger.error(f"Failed to initialize engine: {e}")
             self.logger.debug(traceback.format_exc())
@@ -386,6 +398,25 @@ class MainWindow(QMainWindow):
                 "Aviso",
                 f"Erro ao inicializar engine: {e}\n\nVerifique se OPENAI_API_KEY esta configurada."
             )
+
+    def _init_policy_panel(self):
+        """Initialize the policy panel."""
+        if not self.paths:
+            return
+
+        try:
+            self.policy_panel = PolicyPanel(self.paths.workspace_root)
+
+            # Replace placeholder
+            idx = self.stack.indexOf(self._policy_placeholder)
+            if idx >= 0:
+                self.stack.removeWidget(self._policy_placeholder)
+                self._policy_placeholder.deleteLater()
+                self.stack.insertWidget(idx, self.policy_panel)
+
+            self.logger.info("Policy panel initialized")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize policy panel: {e}")
 
     def _navigate(self, key: str):
         """Navigate to a page."""
@@ -398,6 +429,7 @@ class MainWindow(QMainWindow):
             "diagnostics": 5,
             "dashboard": 6,
             "checkpoints": 7,
+            "policies": 8,
         }
 
         if key in page_map:
