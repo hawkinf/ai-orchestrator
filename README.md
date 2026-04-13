@@ -438,7 +438,43 @@ source ~/.bashrc
    - **OK** (green): Key is configured correctly
    - **NAO ENCONTRADA** (red): Key not found
    - **VAZIA** (yellow): Key exists but is empty
-4. Click **Testar Engine** to verify full connectivity
+
+### Connection Test Button
+
+The **Ambiente** tab includes two test buttons:
+
+| Button | Description |
+|--------|-------------|
+| **Testar Conexao** | Full test: key resolution + client initialization + network connectivity |
+| **Teste Rapido** | Quick test: key resolution + client initialization only (no network call) |
+
+**What the test validates:**
+
+1. **Key Resolution** - Checks if `OPENAI_API_KEY` is found (environment variable or .env file)
+2. **Client Initialization** - Verifies the OpenAI client can be created with the key
+3. **Network Connectivity** - Calls the `models.list()` endpoint to validate authentication and network access
+
+**Test results:**
+
+| Status | Meaning |
+|--------|---------|
+| **SUCESSO** (green) | All stages passed |
+| **FALHA** (red) | Test failed at some stage |
+| **TESTANDO** (blue) | Test in progress |
+| **NAO TESTADO** (gray) | No test executed yet |
+
+**Limitations:**
+
+- The network test uses `models.list()` which is lightweight but still makes an API call
+- If you want to avoid API calls, use "Teste Rapido"
+- The test validates key format and connectivity but doesn't test actual completion requests
+- Rate limits may temporarily block the test
+
+**Security notes:**
+
+- The API key is never displayed in full (masked as `sk-abc1...`)
+- The key is never logged in full
+- Error messages are sanitized to remove potential secrets
 
 ### Verifying Configuration (CLI)
 

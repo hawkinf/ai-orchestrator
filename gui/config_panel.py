@@ -526,31 +526,86 @@ class ConfigPanel(QWidget):
 
         content_layout.addWidget(api_group)
 
-        # Test Engine button
-        test_group = QGroupBox("Teste de Engine")
+        # Connection Test Section
+        test_group = QGroupBox("Teste de Conexao")
         test_layout = QVBoxLayout(test_group)
 
         test_desc = QLabel(
-            "Testa a inicializacao do Planner e Reviewer (OpenAI).\n"
-            "Use para verificar se a configuracao esta correta."
+            "Valida a chave API e testa a conexao com OpenAI.\n"
+            "O teste verifica: resolucao da chave, inicializacao do cliente e conectividade de rede."
         )
         test_desc.setStyleSheet("color: #64748b;")
         test_desc.setWordWrap(True)
         test_layout.addWidget(test_desc)
 
+        # Status row with badge
+        status_row = QHBoxLayout()
+        status_row.addWidget(QLabel("Status:"))
+        self.test_status_badge = QLabel("NAO TESTADO")
+        self.test_status_badge.setStyleSheet(
+            "background-color: #64748b; color: white; padding: 2px 8px; "
+            "border-radius: 4px; font-weight: 600; font-size: 11px;"
+        )
+        status_row.addWidget(self.test_status_badge)
+        status_row.addStretch()
+        test_layout.addLayout(status_row)
+
+        # Last test timestamp
+        timestamp_row = QHBoxLayout()
+        timestamp_row.addWidget(QLabel("Ultimo teste:"))
+        self.test_timestamp_label = QLabel("-")
+        self.test_timestamp_label.setStyleSheet("color: #64748b;")
+        timestamp_row.addWidget(self.test_timestamp_label)
+        timestamp_row.addStretch()
+        test_layout.addLayout(timestamp_row)
+
+        # Test buttons
         test_btn_row = QHBoxLayout()
-        self.test_engine_btn = QPushButton("Testar Engine")
-        self.test_engine_btn.setFixedWidth(150)
-        self.test_engine_btn.clicked.connect(self._test_engine)
-        test_btn_row.addWidget(self.test_engine_btn)
+
+        self.test_connection_btn = QPushButton("Testar Conexao")
+        self.test_connection_btn.setFixedWidth(140)
+        self.test_connection_btn.clicked.connect(self._run_connection_test)
+        test_btn_row.addWidget(self.test_connection_btn)
+
+        self.test_quick_btn = QPushButton("Teste Rapido")
+        self.test_quick_btn.setFixedWidth(100)
+        self.test_quick_btn.setToolTip("Testa apenas resolucao da chave e inicializacao (sem rede)")
+        self.test_quick_btn.clicked.connect(self._run_quick_test)
+        test_btn_row.addWidget(self.test_quick_btn)
+
         test_btn_row.addStretch()
         test_layout.addLayout(test_btn_row)
 
+        # Progress indicator
+        self.test_progress_label = QLabel("")
+        self.test_progress_label.setStyleSheet("color: #3b82f6; font-style: italic;")
+        test_layout.addWidget(self.test_progress_label)
+
+        # Result summary
         self.test_result_label = QLabel("")
         self.test_result_label.setWordWrap(True)
         test_layout.addWidget(self.test_result_label)
 
+        # Details area (collapsible-style)
+        details_label = QLabel("Detalhes:")
+        details_label.setStyleSheet("color: #64748b; margin-top: 8px;")
+        test_layout.addWidget(details_label)
+
+        self.test_details_text = QTextEdit()
+        self.test_details_text.setReadOnly(True)
+        self.test_details_text.setMaximumHeight(120)
+        self.test_details_text.setStyleSheet(
+            "background-color: #f8fafc; border: 1px solid #e2e8f0; "
+            "font-family: monospace; font-size: 11px;"
+        )
+        self.test_details_text.setPlaceholderText("Execute um teste para ver os detalhes...")
+        test_layout.addWidget(self.test_details_text)
+
         content_layout.addWidget(test_group)
+
+        # Initialize connection test manager
+        from .connection_test_worker import ConnectionTestManager
+        self._connection_test_manager = ConnectionTestManager()
 
         # Help section
         help_group = QGroupBox("Como Configurar")
@@ -725,46 +780,160 @@ class ConfigPanel(QWidget):
             self.api_status_label.setText(f"ERRO: {e}")
             self.api_status_label.setStyleSheet("color: #ef4444; font-weight: 600;")
 
-    def _test_engine(self):
-        """Test engine initialization."""
-        self.test_result_label.setText("Testando...")
-        self.test_result_label.setStyleSheet("color: #64748b;")
-        self.test_engine_btn.setEnabled(False)
+    def _run_connection_test(self):
+        """Run full connection test with network validation."""
+        self._start_connection_test(skip_network=False)
 
-        try:
-            from orchestrator.openai_client import PlannerClient, ReviewerClient
+    def _run_quick_test(self):
+        """Run quick test without network validation."""
+        self._start_connection_test(skip_network=True)
 
-            # Try to create planner client
-            planner = PlannerClient()
-            self.test_result_label.setText("Planner OK, testando Reviewer...")
+    def _start_connection_test(self, skip_network: bool = False):
+        """Start connection test in background."""
+        from pathlib import Path
 
-            # Try to create reviewer client
-            reviewer = ReviewerClient()
+        # Disable buttons during test
+        self.test_connection_btn.setEnabled(False)
+        self.test_quick_btn.setEnabled(False)
 
-            self.test_result_label.setText(
-                "SUCESSO!\n\n"
-                "Planner e Reviewer inicializados corretamente.\n"
-                "A engine esta pronta para uso."
-            )
-            self.test_result_label.setStyleSheet("color: #22c55e;")
+        # Update UI to testing state
+        self.test_status_badge.setText("TESTANDO...")
+        self.test_status_badge.setStyleSheet(
+            "background-color: #3b82f6; color: white; padding: 2px 8px; "
+            "border-radius: 4px; font-weight: 600; font-size: 11px;"
+        )
+        self.test_progress_label.setText("Iniciando teste...")
+        self.test_result_label.setText("")
+        self.test_details_text.clear()
 
-        except EnvironmentError as e:
-            # API key issue
-            error_msg = str(e)
-            # Extract just the first line for display
-            first_line = error_msg.split("\n")[0]
-            self.test_result_label.setText(
-                f"FALHA: {first_line}\n\n"
-                "Verifique a aba 'Como Configurar' acima."
-            )
-            self.test_result_label.setStyleSheet("color: #ef4444;")
+        # Run test
+        test_type = "rapido" if skip_network else "completo"
+        self._connection_test_manager.run_test(
+            project_root=Path.cwd(),
+            skip_network_test=skip_network,
+            timeout_seconds=10,
+            on_started=self._on_test_started,
+            on_progress=self._on_test_progress,
+            on_success=self._on_test_success,
+            on_failure=self._on_test_failure,
+            on_error=self._on_test_error,
+        )
 
-        except Exception as e:
-            self.test_result_label.setText(f"ERRO: {e}")
-            self.test_result_label.setStyleSheet("color: #ef4444;")
+    def _on_test_started(self):
+        """Called when test starts."""
+        self.test_progress_label.setText("Teste iniciado...")
 
-        finally:
-            self.test_engine_btn.setEnabled(True)
+    def _on_test_progress(self, stage: str, message: str):
+        """Called with progress updates."""
+        self.test_progress_label.setText(message)
+
+    def _on_test_success(self, result: dict):
+        """Called when test succeeds."""
+        from datetime import datetime
+
+        # Re-enable buttons
+        self.test_connection_btn.setEnabled(True)
+        self.test_quick_btn.setEnabled(True)
+
+        # Update badge
+        self.test_status_badge.setText("SUCESSO")
+        self.test_status_badge.setStyleSheet(
+            "background-color: #22c55e; color: white; padding: 2px 8px; "
+            "border-radius: 4px; font-weight: 600; font-size: 11px;"
+        )
+
+        # Update timestamp
+        self.test_timestamp_label.setText(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        self.test_timestamp_label.setStyleSheet("color: #22c55e;")
+
+        # Clear progress
+        self.test_progress_label.setText("")
+
+        # Show result message
+        message = result.get("message", "Teste concluido com sucesso")
+        duration = result.get("duration_ms", 0)
+        network_tested = result.get("network_test_executed", False)
+
+        summary = f"{message}\n"
+        summary += f"Tempo: {duration}ms\n"
+        summary += f"Fonte: {result.get('source', 'desconhecida')}\n"
+        summary += f"Chave: {result.get('key_preview', '***')}\n"
+        summary += f"Teste de rede: {'Sim' if network_tested else 'Nao'}"
+
+        self.test_result_label.setText(summary)
+        self.test_result_label.setStyleSheet("color: #22c55e;")
+
+        # Show details
+        details = result.get("details", [])
+        self.test_details_text.setPlainText("\n".join(details))
+
+        # Refresh API key status
+        self._check_api_key()
+
+    def _on_test_failure(self, result: dict):
+        """Called when test fails."""
+        from datetime import datetime
+
+        # Re-enable buttons
+        self.test_connection_btn.setEnabled(True)
+        self.test_quick_btn.setEnabled(True)
+
+        # Update badge
+        self.test_status_badge.setText("FALHA")
+        self.test_status_badge.setStyleSheet(
+            "background-color: #ef4444; color: white; padding: 2px 8px; "
+            "border-radius: 4px; font-weight: 600; font-size: 11px;"
+        )
+
+        # Update timestamp
+        self.test_timestamp_label.setText(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        self.test_timestamp_label.setStyleSheet("color: #ef4444;")
+
+        # Clear progress
+        self.test_progress_label.setText("")
+
+        # Show result message
+        message = result.get("message", "Teste falhou")
+        stage = result.get("stage", "unknown")
+        duration = result.get("duration_ms", 0)
+
+        summary = f"FALHA: {message}\n"
+        summary += f"Estagio: {stage}\n"
+        summary += f"Tempo: {duration}ms"
+
+        self.test_result_label.setText(summary)
+        self.test_result_label.setStyleSheet("color: #ef4444;")
+
+        # Show details
+        details = result.get("details", [])
+        self.test_details_text.setPlainText("\n".join(details))
+
+    def _on_test_error(self, error_msg: str):
+        """Called on unexpected error."""
+        from datetime import datetime
+
+        # Re-enable buttons
+        self.test_connection_btn.setEnabled(True)
+        self.test_quick_btn.setEnabled(True)
+
+        # Update badge
+        self.test_status_badge.setText("ERRO")
+        self.test_status_badge.setStyleSheet(
+            "background-color: #ef4444; color: white; padding: 2px 8px; "
+            "border-radius: 4px; font-weight: 600; font-size: 11px;"
+        )
+
+        # Update timestamp
+        self.test_timestamp_label.setText(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        self.test_timestamp_label.setStyleSheet("color: #ef4444;")
+
+        # Clear progress
+        self.test_progress_label.setText("")
+
+        # Show error
+        self.test_result_label.setText(f"Erro inesperado: {error_msg}")
+        self.test_result_label.setStyleSheet("color: #ef4444;")
+        self.test_details_text.setPlainText(f"Erro: {error_msg}")
 
     def set_settings(self, settings: SettingsViewModel):
         """Load settings into the form."""
