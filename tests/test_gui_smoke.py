@@ -251,6 +251,26 @@ class TestTaskPanel:
         assert panel.task_edit.toPlainText() == ""
         panel.close()
 
+    def test_advanced_options_hidden_by_default(self, qapp):
+        """TaskPanel should start in simple mode."""
+        from gui.task_panel import TaskPanel
+
+        panel = TaskPanel()
+        assert panel.settings_section.isHidden()
+        assert panel.advanced_toggle_btn.text() == "Mostrar opções avançadas"
+        panel.close()
+
+    def test_advanced_options_can_be_toggled(self, qapp):
+        """TaskPanel should reveal advanced options on demand."""
+        from gui.task_panel import TaskPanel
+
+        panel = TaskPanel()
+        panel.advanced_toggle_btn.click()
+
+        assert not panel.settings_section.isHidden()
+        assert panel.advanced_toggle_btn.text() == "Ocultar opções avançadas"
+        panel.close()
+
 
 class TestConfigPanel:
     """Test ConfigPanel functionality."""
@@ -274,6 +294,28 @@ class TestConfigPanel:
         assert retrieved.max_iterations == 5
         assert retrieved.planner_model == "gpt-4"
 
+        panel.close()
+
+
+class TestDashboardAndDiagnostics:
+    """Smoke tests for reorganized high-level panels."""
+
+    def test_dashboard_panel_creation(self, qapp):
+        """DashboardPanel can be created."""
+        from gui.dashboard_panel import DashboardPanel
+
+        panel = DashboardPanel()
+        assert panel is not None
+        assert panel.empty_state.isHidden()
+        panel.close()
+
+    def test_diagnostics_panel_creation(self, qapp):
+        """DiagnosticsPanel can be created."""
+        from gui.diagnostics_panel import DiagnosticsPanel
+
+        panel = DiagnosticsPanel()
+        assert panel is not None
+        assert panel.run_all_btn.text() == "Executar tudo"
         panel.close()
 
 

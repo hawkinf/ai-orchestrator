@@ -43,7 +43,7 @@ class Sidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(200)
+        self.setFixedWidth(184)
         self._buttons = {}
         self._setup_ui()
 
@@ -53,15 +53,18 @@ class Sidebar(QFrame):
         layout.setSpacing(2)
         layout.setContentsMargins(8, 12, 8, 12)
 
-        # Logo/title - compact
         title = QLabel("AI Orchestrator")
         title.setStyleSheet("""
             color: #e6edf3;
             font-size: 14px;
             font-weight: 600;
-            padding: 6px 8px 16px 8px;
+            padding: 4px 8px 4px 8px;
         """)
         layout.addWidget(title)
+
+        subtitle = QLabel("Fluxo guiado")
+        subtitle.setStyleSheet("color: #6b7280; font-size: 11px; padding: 0 8px 12px 8px;")
+        layout.addWidget(subtitle)
 
         # Navigation sections with compact buttons
         # Main section
@@ -388,6 +391,7 @@ class MainWindow(QMainWindow):
         self.dashboard_panel.run_resume.connect(self._on_resume_run)
         self.dashboard_panel.open_folder.connect(self._open_run_folder)
         self.dashboard_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
+        self.dashboard_panel.navigate_to_new_task.connect(lambda: self._navigate("new_task"))
 
         # Checkpoints panel
         self.checkpoints_panel.checkpoint_approved.connect(self._on_checkpoint_approved_from_center)

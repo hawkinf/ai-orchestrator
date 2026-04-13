@@ -108,7 +108,7 @@ QMainWindow {
     color: #9da7b3;
     border: none;
     border-radius: 6px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     text-align: left;
     font-size: 13px;
     font-weight: 500;
@@ -145,7 +145,7 @@ QLabel {
 }
 
 QLabel#header, QLabel[heading="true"] {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #e6edf3;
     padding: 0;
@@ -170,10 +170,10 @@ QPushButton {
     color: #ffffff;
     border: none;
     border-radius: 6px;
-    padding: 8px 16px;
+    padding: 7px 14px;
     font-weight: 500;
     font-size: 13px;
-    min-height: 20px;
+    min-height: 18px;
 }
 
 QPushButton:hover {
@@ -254,7 +254,7 @@ QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #161a22;
     border: 1px solid #2a2f3a;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     font-size: 13px;
     color: #e6edf3;
     selection-background-color: #4f8cff;
@@ -287,7 +287,7 @@ QComboBox {
     background-color: #161a22;
     border: 1px solid #2a2f3a;
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     padding-right: 28px;
     color: #e6edf3;
     min-width: 100px;
@@ -317,6 +317,7 @@ QComboBox::down-arrow {
 
 QComboBox QAbstractItemView {
     background-color: #1c212b;
+    color: #e6edf3;
     border: 1px solid #2a2f3a;
     border-radius: 6px;
     padding: 4px;
@@ -384,7 +385,7 @@ QSpinBox, QDoubleSpinBox {
     background-color: #161a22;
     border: 1px solid #2a2f3a;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 5px 8px;
     color: #e6edf3;
 }
 
@@ -412,8 +413,8 @@ QGroupBox {
     color: #e6edf3;
     border: 1px solid #2a2f3a;
     border-radius: 8px;
-    margin-top: 16px;
-    padding: 16px 12px 12px 12px;
+    margin-top: 14px;
+    padding: 14px 10px 10px 10px;
     background-color: #161a22;
 }
 
@@ -751,6 +752,11 @@ QFrame#card,
     background-color: #161a22;
     border: 1px solid #2a2f3a;
     border-radius: 8px;
+}
+
+#task_action_bar {
+    background-color: #0d1117;
+    border-top: 1px solid #2a2f3a;
 }
 
 QFrame[card="true"]:hover,

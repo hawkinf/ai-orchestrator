@@ -336,7 +336,7 @@ class HelpPanel(QWidget):
 
         # Header
         header = QLabel("Ajuda")
-        header.setStyleSheet("font-size: 24px; font-weight: 600;")
+        header.setProperty("heading", True)
         layout.addWidget(header)
 
         # Tabs
@@ -375,9 +375,11 @@ class HelpPanel(QWidget):
         content.setHtml(self._style_html(html_content))
         content.setStyleSheet("""
             QTextEdit {
-                background-color: #ffffff;
-                border: none;
-                padding: 16px;
+                background-color: #161a22;
+                color: #e6edf3;
+                border: 1px solid #2a2f3a;
+                border-radius: 8px;
+                padding: 12px;
             }
         """)
 
@@ -419,9 +421,11 @@ class HelpPanel(QWidget):
         self.function_content.setReadOnly(True)
         self.function_content.setStyleSheet("""
             QTextEdit {
-                background-color: #ffffff;
-                border: none;
-                padding: 16px;
+                background-color: #161a22;
+                color: #e6edf3;
+                border: 1px solid #2a2f3a;
+                border-radius: 8px;
+                padding: 12px;
             }
         """)
         self.function_content.setHtml(self._style_html(
@@ -482,17 +486,18 @@ class HelpPanel(QWidget):
             group.setStyleSheet("""
                 QGroupBox {
                     font-weight: 600;
-                    color: #1e293b;
-                    border: 1px solid #e2e8f0;
+                    color: #e6edf3;
+                    border: 1px solid #2a2f3a;
                     border-radius: 8px;
                     margin-top: 12px;
                     padding-top: 16px;
-                    background-color: #ffffff;
+                    background-color: #161a22;
                 }
                 QGroupBox::title {
                     subcontrol-origin: margin;
                     left: 12px;
                     padding: 0 8px;
+                    background-color: #161a22;
                 }
             """)
             group_layout = QVBoxLayout(group)
@@ -505,6 +510,7 @@ class HelpPanel(QWidget):
                 QTextEdit {
                     background-color: transparent;
                     border: none;
+                    color: #e6edf3;
                 }
             """)
             group_layout.addWidget(answer)
@@ -524,17 +530,17 @@ class HelpPanel(QWidget):
             body {{
                 font-family: 'Segoe UI', system-ui, sans-serif;
                 font-size: 13px;
-                color: #1e293b;
+                color: #d8dee7;
                 line-height: 1.6;
             }}
             h2 {{
-                color: #1e293b;
+                color: #e6edf3;
                 font-size: 18px;
                 margin-top: 16px;
                 margin-bottom: 12px;
             }}
             h3 {{
-                color: #475569;
+                color: #c3ccd8;
                 font-size: 14px;
                 margin-top: 12px;
                 margin-bottom: 8px;
@@ -550,7 +556,8 @@ class HelpPanel(QWidget):
                 margin: 4px 0;
             }}
             pre {{
-                background-color: #f1f5f9;
+                background-color: #0f1115;
+                color: #d8dee7;
                 padding: 12px;
                 border-radius: 6px;
                 font-family: Consolas, monospace;
@@ -558,14 +565,15 @@ class HelpPanel(QWidget):
                 overflow-x: auto;
             }}
             code {{
-                background-color: #f1f5f9;
+                background-color: #0f1115;
+                color: #d8dee7;
                 padding: 2px 6px;
                 border-radius: 4px;
                 font-family: Consolas, monospace;
                 font-size: 12px;
             }}
             b {{
-                color: #1e293b;
+                color: #f3f6fb;
             }}
         </style>
         {html}

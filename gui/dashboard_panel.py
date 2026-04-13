@@ -14,7 +14,7 @@ from typing import Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QLineEdit, QComboBox, QTableWidget,
-    QTableWidgetItem, QHeaderView, QSplitter, QGroupBox,
+    QTableWidgetItem, QHeaderView, QSplitter,
     QMessageBox, QApplication, QCheckBox, QSpinBox,
 )
 from PySide6.QtCore import Signal, Qt, QTimer
@@ -45,19 +45,19 @@ class MetricCardWidget(QFrame):
                 background-color: #161a22;
                 border: 1px solid #2a2f3a;
                 border-radius: 6px;
-                padding: 10px;
-                min-width: 90px;
+                padding: 8px;
+                min-width: 82px;
             }}
         """)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 8, 10, 8)
 
         # Value
         self.value_label = QLabel(str(value))
         self.value_label.setStyleSheet(f"""
-            font-size: 22px;
+            font-size: 19px;
             font-weight: 600;
             color: {color};
         """)
@@ -66,7 +66,7 @@ class MetricCardWidget(QFrame):
         # Label
         self.label_label = QLabel(label)
         self.label_label.setStyleSheet("""
-            font-size: 11px;
+            font-size: 10px;
             color: #6b7280;
         """)
         layout.addWidget(self.label_label)
@@ -135,13 +135,13 @@ class FilterBar(QFrame):
     def _setup_ui(self):
         """Setup the UI."""
         layout = QHBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(10)
+        layout.setContentsMargins(0, 4, 0, 4)
 
         # Search
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Buscar por run_id ou tarefa...")
-        self.search_edit.setFixedWidth(250)
+        self.search_edit.setFixedWidth(220)
         self.search_edit.textChanged.connect(self._on_filter_changed)
         layout.addWidget(self.search_edit)
 
@@ -154,7 +154,7 @@ class FilterBar(QFrame):
         self.status_combo.addItem("Falhas", RunStatus.FAILED)
         self.status_combo.addItem("Checkpoint", RunStatus.CHECKPOINT)
         self.status_combo.addItem("Bloqueadas", RunStatus.BLOCKED)
-        self.status_combo.setFixedWidth(140)
+        self.status_combo.setFixedWidth(132)
         self.status_combo.currentIndexChanged.connect(self._on_filter_changed)
         layout.addWidget(self.status_combo)
 
@@ -162,7 +162,7 @@ class FilterBar(QFrame):
         layout.addWidget(QLabel("Profile:"))
         self.profile_combo = QComboBox()
         self.profile_combo.addItem("Todos", None)
-        self.profile_combo.setFixedWidth(120)
+        self.profile_combo.setFixedWidth(116)
         self.profile_combo.currentIndexChanged.connect(self._on_filter_changed)
         layout.addWidget(self.profile_combo)
 
@@ -181,7 +181,7 @@ class FilterBar(QFrame):
         # Refresh button
         self.refresh_btn = QPushButton("Atualizar")
         self.refresh_btn.setObjectName("secondary")
-        self.refresh_btn.setFixedWidth(100)
+        self.refresh_btn.setFixedWidth(96)
         layout.addWidget(self.refresh_btn)
 
     def _on_filter_changed(self):
@@ -600,6 +600,7 @@ class DashboardPanel(QWidget):
     open_folder = Signal(str)  # run_id
     open_diagnostics = Signal()
     navigate_to_runs = Signal(str)  # run_id to show
+    navigate_to_new_task = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -611,14 +612,17 @@ class DashboardPanel(QWidget):
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
         layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
+        header_wrap = QVBoxLayout()
+        header_wrap.setSpacing(6)
+
         header_layout = QHBoxLayout()
 
         title = QLabel("Central de Runs")
-        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
+        title.setProperty("heading", True)
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -641,7 +645,13 @@ class DashboardPanel(QWidget):
         copy_btn.clicked.connect(self._on_copy)
         header_layout.addWidget(copy_btn)
 
-        layout.addLayout(header_layout)
+        header_wrap.addLayout(header_layout)
+
+        subtitle = QLabel("Acompanhe execuções recentes, revise detalhes e retome runs pausadas.")
+        subtitle.setProperty("subheading", True)
+        subtitle.setWordWrap(True)
+        header_wrap.addWidget(subtitle)
+        layout.addLayout(header_wrap)
 
         # Metrics bar
         self.metrics_bar = MetricsBar()
@@ -653,8 +663,13 @@ class DashboardPanel(QWidget):
         self.filter_bar.refresh_btn.clicked.connect(self._on_refresh)
         layout.addWidget(self.filter_bar)
 
+        self.empty_state = self._create_empty_state()
+        layout.addWidget(self.empty_state)
+        self.empty_state.hide()
+
         # Main content splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
 
         # Runs table
         self.runs_table = RunsTable()
@@ -671,7 +686,8 @@ class DashboardPanel(QWidget):
         splitter.addWidget(self.detail_preview)
 
         splitter.setSizes([600, 400])
-        layout.addWidget(splitter, 1)
+        self.splitter = splitter
+        layout.addWidget(self.splitter, 1)
 
         # Status bar
         status_layout = QHBoxLayout()
@@ -687,6 +703,47 @@ class DashboardPanel(QWidget):
         status_layout.addWidget(self.last_update_label)
 
         layout.addLayout(status_layout)
+
+    def _create_empty_state(self) -> QWidget:
+        """Create a clear empty state for the dashboard."""
+        frame = QFrame()
+        frame.setProperty("card", True)
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(8)
+
+        title = QLabel("Nenhuma execução ainda")
+        title.setStyleSheet("font-size: 18px; font-weight: 600;")
+        layout.addWidget(title)
+
+        message = QLabel("Crie uma nova tarefa para começar. Quando houver runs, elas aparecerão aqui com status e detalhes.")
+        message.setProperty("subheading", True)
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        hint = QLabel("Dica: comece pela tela Nova Tarefa e use o modo simples para a primeira execução.")
+        hint.setProperty("muted", True)
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 10, 0, 0)
+        actions.setSpacing(10)
+
+        new_task_btn = QPushButton("Criar nova tarefa")
+        new_task_btn.clicked.connect(lambda checked=False: self.navigate_to_new_task.emit())
+        actions.addWidget(new_task_btn)
+        actions.addStretch()
+        layout.addLayout(actions)
+
+        return frame
+
+    def _update_content_state(self, has_runs: bool):
+        """Switch between empty state and populated dashboard."""
+        self.metrics_bar.setVisible(has_runs)
+        self.filter_bar.setVisible(has_runs)
+        self.splitter.setVisible(has_runs)
+        self.empty_state.setVisible(not has_runs)
 
     def set_workspace(self, workspace_path: Path):
         """Set workspace path and initialize manager."""
@@ -740,9 +797,13 @@ class DashboardPanel(QWidget):
         # Apply local filter if any
         filtered = self._state.apply_filter()
         self.runs_table.set_runs(filtered)
+        self._update_content_state(bool(runs))
 
         # Update status
-        self.status_label.setText(f"{len(runs)} runs")
+        if runs:
+            self.status_label.setText(f"{len(runs)} runs")
+        else:
+            self.status_label.setText("Nenhuma execução")
         self.last_update_label.setText(
             f"Atualizado: {datetime.now().strftime('%H:%M:%S')}"
         )

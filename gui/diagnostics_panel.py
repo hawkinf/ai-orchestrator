@@ -13,8 +13,8 @@ from typing import Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QGroupBox, QTextEdit, QMessageBox,
-    QProgressBar, QSizePolicy,
+    QFrame, QScrollArea, QTextEdit, QMessageBox,
+    QProgressBar,
 )
 from PySide6.QtCore import Signal, Qt, Slot
 from PySide6.QtGui import QColor
@@ -70,7 +70,7 @@ class CheckItemWidget(QFrame):
                 background-color: #161a22;
                 border: 1px solid #2a2f3a;
                 border-radius: 6px;
-                padding: 8px;
+                padding: 6px;
             }
             QFrame#checkItem:hover {
                 border-color: #3a4150;
@@ -79,7 +79,7 @@ class CheckItemWidget(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(12, 10, 12, 10)
 
         # Header row
         header_layout = QHBoxLayout()
@@ -87,7 +87,7 @@ class CheckItemWidget(QFrame):
 
         # Status badge
         self.status_badge = QLabel()
-        self.status_badge.setFixedWidth(50)
+        self.status_badge.setFixedWidth(54)
         self.status_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_badge.setStyleSheet("""
             font-weight: bold;
@@ -99,7 +99,7 @@ class CheckItemWidget(QFrame):
 
         # Title and summary
         title_layout = QVBoxLayout()
-        title_layout.setSpacing(2)
+        title_layout.setSpacing(1)
 
         self.title_label = QLabel(self.check_state.title)
         self.title_label.setStyleSheet("font-weight: 600; font-size: 13px; color: #e6edf3;")
@@ -107,6 +107,7 @@ class CheckItemWidget(QFrame):
 
         self.summary_label = QLabel()
         self.summary_label.setStyleSheet("font-size: 12px; color: #6b7280;")
+        self.summary_label.setWordWrap(True)
         title_layout.addWidget(self.summary_label)
 
         header_layout.addLayout(title_layout, 1)
@@ -118,7 +119,7 @@ class CheckItemWidget(QFrame):
 
         # Run button
         self.run_btn = QPushButton("Testar")
-        self.run_btn.setFixedSize(70, 28)
+        self.run_btn.setFixedSize(76, 28)
         self.run_btn.setStyleSheet("""
             QPushButton {
                 background-color: #1c212b;
@@ -162,7 +163,7 @@ class CheckItemWidget(QFrame):
         self.details_frame.setVisible(False)
         details_layout = QVBoxLayout(self.details_frame)
         details_layout.setSpacing(8)
-        details_layout.setContentsMargins(0, 8, 0, 0)
+        details_layout.setContentsMargins(0, 6, 0, 0)
 
         # Description
         self.description_label = QLabel(self.check_state.description)
@@ -173,7 +174,7 @@ class CheckItemWidget(QFrame):
         # Details text
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
-        self.details_text.setMaximumHeight(120)
+        self.details_text.setMaximumHeight(110)
         self.details_text.setStyleSheet("""
             QTextEdit {
                 background-color: #0f1115;
@@ -272,7 +273,7 @@ class CheckItemWidget(QFrame):
                     background-color: #1f1515;
                     border: 1px solid #ef444440;
                     border-radius: 6px;
-                    padding: 8px;
+                    padding: 6px;
                 }
             """)
         else:
@@ -281,7 +282,7 @@ class CheckItemWidget(QFrame):
                     background-color: #161a22;
                     border: 1px solid #2a2f3a;
                     border-radius: 6px;
-                    padding: 8px;
+                    padding: 6px;
                 }
                 QFrame#checkItem:hover {
                     border-color: #3a4150;
@@ -322,14 +323,17 @@ class DiagnosticsPanel(QWidget):
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
         layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
+        header_wrap = QVBoxLayout()
+        header_wrap.setSpacing(6)
+
         header_layout = QHBoxLayout()
 
         title = QLabel("Diagnostico do Sistema")
-        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
+        title.setProperty("heading", True)
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -340,22 +344,21 @@ class DiagnosticsPanel(QWidget):
             background-color: #1c212b;
             color: #6b7280;
             font-weight: 600;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 6px;
             font-size: 12px;
         """)
         header_layout.addWidget(self.overall_badge)
 
-        layout.addLayout(header_layout)
+        header_wrap.addLayout(header_layout)
 
-        # Description
         desc = QLabel(
-            "Verifique se todos os componentes estao prontos antes de iniciar uma tarefa. "
-            "Clique em 'Executar Diagnostico' para testar todos os itens."
+            "Faça um teste rápido do ambiente antes de executar uma tarefa. Use 'Executar tudo' para validar os itens essenciais de uma vez."
         )
-        desc.setStyleSheet("color: #6b7280; font-size: 12px; margin-bottom: 8px;")
+        desc.setProperty("subheading", True)
         desc.setWordWrap(True)
-        layout.addWidget(desc)
+        header_wrap.addWidget(desc)
+        layout.addLayout(header_wrap)
 
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -402,26 +405,13 @@ class DiagnosticsPanel(QWidget):
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(12)
 
-        # Run all button
-        self.run_all_btn = QPushButton("Executar Diagnostico Completo")
-        self.run_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4f8cff;
-                color: white;
-                font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #3b7ae8;
-            }
-            QPushButton:disabled {
-                background-color: #6b7280;
-            }
-        """)
+        self.run_all_btn = QPushButton("Executar tudo")
         self.run_all_btn.clicked.connect(self._run_all_checks)
         actions_layout.addWidget(self.run_all_btn)
+
+        helper = QLabel("Os testes individuais continuam disponíveis em cada item.")
+        helper.setProperty("muted", True)
+        actions_layout.addWidget(helper)
 
         actions_layout.addStretch()
 
