@@ -22,6 +22,11 @@ class StateStore:
         self.paths = paths
         self._ensure_dirs()
 
+    @classmethod
+    def from_workspace(cls, workspace_root: Path) -> "StateStore":
+        """Create a store directly from a workspace path."""
+        return cls(OrchestratorPaths(workspace_root=workspace_root))
+
     def _ensure_dirs(self) -> None:
         """Ensure state directories exist."""
         self.paths.state_dir.mkdir(parents=True, exist_ok=True)

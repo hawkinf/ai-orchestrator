@@ -7,8 +7,9 @@ from typing import Optional
 class OrchestratorPaths:
     """Centralized path management."""
 
-    def __init__(self, workspace_root: Optional[Path] = None):
-        self.workspace_root = workspace_root or Path("./workspace")
+    def __init__(self, workspace_root: Optional[Path] = None, project_root: Optional[Path] = None):
+        self.workspace_root = (workspace_root or Path("./workspace")).resolve()
+        self.project_root = (project_root or Path.cwd()).resolve()
         self._ensure_structure()
 
     def _ensure_structure(self) -> None:

@@ -26,6 +26,13 @@ def state_store(temp_workspace):
 class TestStateStore:
     """Tests for StateStore class."""
 
+    def test_from_workspace_factory(self, temp_workspace):
+        """StateStore should support direct construction from a workspace path."""
+        store = StateStore.from_workspace(temp_workspace)
+
+        assert store.paths.workspace_root == temp_workspace.resolve()
+        assert store.paths.state_dir.exists()
+
     def test_create_run(self, state_store):
         """Test creating a new run."""
         task = TaskRequest(description="Test task")

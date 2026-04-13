@@ -19,15 +19,17 @@ def setup_logging(log_dir: Path = None) -> logging.Logger:
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    console_format = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S"
-    )
-    console_handler.setFormatter(console_format)
-    logger.addHandler(console_handler)
+    # Console output is useful in development, but should stay silent in the
+    # packaged desktop app to avoid user-facing terminal noise.
+    if not getattr(sys, "frozen", False):
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_format = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S"
+        )
+        console_handler.setFormatter(console_format)
+        logger.addHandler(console_handler)
 
     # File handler (if log_dir provided)
     if log_dir:
@@ -109,7 +111,7 @@ def run_gui():
             logger.info(f"Configuration loaded: workspace_path={config.workspace_path}")
 
             # Create paths manager (this ensures directories exist)
-            paths = OrchestratorPaths(config.workspace_path)
+            paths = OrchestratorPaths(config.workspace_path, config.project_path)
             logger.info(f"Workspace initialized: {paths.workspace_root}")
 
             # Re-setup logging with proper log directory
@@ -126,7 +128,7 @@ def run_gui():
                 from orchestrator.paths import OrchestratorPaths
 
                 config = OrchestratorConfig()
-                paths = OrchestratorPaths(config.workspace_path)
+                paths = OrchestratorPaths(config.workspace_path, config.project_path)
                 logger.info(f"Default workspace: {paths.workspace_root}")
             except Exception as fallback_error:
                 logger.error(f"Failed to create default config: {fallback_error}")
@@ -143,7 +145,7 @@ def run_gui():
                 from orchestrator.paths import OrchestratorPaths
 
                 config = OrchestratorConfig()
-                paths = OrchestratorPaths(config.workspace_path)
+                paths = OrchestratorPaths(config.workspace_path, config.project_path)
             except Exception as fallback_error:
                 logger.error(f"Failed to create default config: {fallback_error}")
 
@@ -196,8 +198,9 @@ def main():
     try:
         sys.exit(run_gui())
     except Exception as e:
-        print(f"FATAL ERROR: {e}")
-        traceback.print_exc()
+        if not getattr(sys, "frozen", False):
+            print(f"FATAL ERROR: {e}")
+            traceback.print_exc()
         sys.exit(1)
 
 

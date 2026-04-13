@@ -138,6 +138,9 @@ class SettingsStore:
 
 def config_to_settings(config) -> SettingsViewModel:
     """Convert OrchestratorConfig to SettingsViewModel."""
+    flutter_profile = config.profiles.get("flutter")
+    python_profile = config.profiles.get("python")
+
     return SettingsViewModel(
         project_path=str(config.project_path),
         workspace_path=str(config.workspace_path),
@@ -149,8 +152,8 @@ def config_to_settings(config) -> SettingsViewModel:
         reviewer_timeout=config.reviewer.timeout_seconds,
         executor_command=config.executor.command,
         executor_timeout=config.executor.timeout_seconds,
-        flutter_commands=config.profiles.get("flutter", {}).get("validation_commands", []),
-        python_commands=config.profiles.get("python", {}).get("validation_commands", []),
+        flutter_commands=list(getattr(flutter_profile, "validation_commands", [])),
+        python_commands=list(getattr(python_profile, "validation_commands", [])),
         allow_auto_commit=config.allow_auto_commit,
         allow_auto_push=config.auto_push_on_complete,
         git_remote=config.git.remote,

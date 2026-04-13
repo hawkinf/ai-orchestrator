@@ -72,6 +72,7 @@ Important build rules:
 - When the target is `ai_orchestrator.spec`, do not pass `--onefile` or `--onedir` on the CLI. PyInstaller rejects those flags when a `.spec` file is provided.
 - The packaging mode is defined inside `ai_orchestrator.spec`. The current spec is configured as `onefile` because it contains `EXE(...)` without `COLLECT(...)`.
 - If you intentionally build from a Python entrypoint instead of the spec, use `python build.py build --target main.py` and then CLI packaging flags are allowed through the build script.
+- The Windows build is generated in GUI/windowed mode (`console=False`), so the final executable should open only the application window and not an extra terminal.
 - Run the build in a normal terminal session. PyInstaller warns that running as Administrator is unnecessary and not recommended.
 
 ## Quick Start
@@ -84,6 +85,12 @@ Launch the desktop application:
 # Start the GUI
 python -m gui.app
 ```
+
+Behavior notes:
+
+- In development, running `python -m gui.app` from a terminal keeps that terminal open for logs.
+- In the packaged Windows build, `AIOrchestrator.exe` runs as a desktop app without an attached console window.
+- If the OpenAI API key is missing, the GUI shows a compact guidance dialog and can open `Configuracoes > Ambiente` directly.
 
 The GUI provides:
 

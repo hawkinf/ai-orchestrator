@@ -826,7 +826,6 @@ QLabel[section="true"] {
     color: #9da7b3;
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 8px 0 4px 0;
 }

@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QSpinBox, QCheckBox, QGroupBox, QScrollArea,
     QFrame, QTabWidget, QTextEdit, QComboBox, QMessageBox,
 )
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QTimer
 
 from .ui_models import SettingsViewModel
 
@@ -29,6 +29,7 @@ class ConfigPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._settings: Optional[SettingsViewModel] = None
+        self._environment_tab_index: Optional[int] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -77,7 +78,7 @@ class ConfigPanel(QWidget):
 
         # Environment tab (API Keys)
         env_tab = self._create_environment_tab()
-        self.tabs.addTab(env_tab, "Ambiente")
+        self._environment_tab_index = self.tabs.addTab(env_tab, "Ambiente")
 
         layout.addWidget(self.tabs)
 
@@ -639,6 +640,17 @@ class ConfigPanel(QWidget):
         self._check_api_key()
 
         return widget
+
+    def focus_openai_configuration(self):
+        """Open the environment tab and focus the OpenAI API key field."""
+        if self._environment_tab_index is not None:
+            self.tabs.setCurrentIndex(self._environment_tab_index)
+
+        def apply_focus():
+            self.api_key_input.setFocus()
+            self.api_key_input.selectAll()
+
+        QTimer.singleShot(0, apply_focus)
 
     def _toggle_key_visibility(self, show: bool):
         """Toggle API key visibility in input field."""

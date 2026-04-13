@@ -32,6 +32,7 @@ from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
 from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
+from .openai_config_dialog import OpenAIConfigRequiredDialog
 from .checkpoints_panel import CheckpointsPanel
 from .policy_panel import PolicyPanel
 from .replay_panel import ReplayPanel
@@ -468,11 +469,36 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.logger.error(f"Failed to initialize engine: {e}")
             self.logger.debug(traceback.format_exc())
-            QMessageBox.warning(
-                self,
-                "Aviso",
-                f"Erro ao inicializar engine: {e}\n\nVerifique se OPENAI_API_KEY esta configurada."
-            )
+            if self._is_openai_configuration_error(e):
+                self._show_openai_configuration_dialog()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Inicialização incompleta",
+                    "Não foi possível iniciar todos os recursos da aplicação.\n\n"
+                    "Verifique os logs para mais detalhes técnicos."
+                )
+
+    def _is_openai_configuration_error(self, error: Exception) -> bool:
+        """Check whether an exception is caused by missing OpenAI configuration."""
+        error_text = str(error)
+        markers = [
+            "OPENAI_API_KEY",
+            "OpenAI API key not configured",
+            "OpenAI API key",
+        ]
+        return any(marker in error_text for marker in markers)
+
+    def _show_openai_configuration_dialog(self):
+        """Show a compact dialog guiding the user to configure OpenAI."""
+        dialog = OpenAIConfigRequiredDialog(self)
+        if dialog.exec():
+            self._open_openai_settings()
+
+    def _open_openai_settings(self):
+        """Navigate to the correct settings area for OpenAI configuration."""
+        self._navigate("settings")
+        self.config_panel.focus_openai_configuration()
 
     def _init_policy_panel(self):
         """Initialize the policy panel."""

@@ -140,6 +140,25 @@ class TestSettingsStore:
         assert prefs.recent_projects[0] == "/project1"
         assert len(prefs.recent_projects) == 2
 
+    def test_config_to_settings_reads_profile_models(self, tmp_path):
+        """config_to_settings should support ProfileConfig objects."""
+        from orchestrator.config import OrchestratorConfig, ProfileConfig
+        from gui.settings_store import config_to_settings
+
+        config = OrchestratorConfig(
+            project_path=tmp_path,
+            workspace_path=tmp_path / "workspace",
+            profiles={
+                "flutter": ProfileConfig(validation_commands=["flutter analyze"]),
+                "python": ProfileConfig(validation_commands=["python -m pytest"]),
+            },
+        )
+
+        settings = config_to_settings(config)
+
+        assert settings.flutter_commands == ["flutter analyze"]
+        assert settings.python_commands == ["python -m pytest"]
+
 
 class TestStyles:
     """Test style utilities."""
@@ -159,6 +178,16 @@ class TestStyles:
         style = get_status_style("completed")
         assert "color:" in style
         assert "padding:" in style
+
+    def test_no_unsupported_qss_properties(self):
+        """Regression test for unsupported QSS properties that caused runtime warnings."""
+        styles_text = Path("gui/styles.py").read_text(encoding="utf-8")
+        diagnostics_text = Path("gui/diagnostics_panel.py").read_text(encoding="utf-8")
+        spec_text = Path("ai_orchestrator.spec").read_text(encoding="utf-8")
+
+        assert "text-transform" not in styles_text
+        assert "transform:" not in diagnostics_text
+        assert "console=False" in spec_text
 
 
 # GUI widget tests require QApplication
@@ -296,6 +325,19 @@ class TestConfigPanel:
 
         panel.close()
 
+    def test_focus_openai_configuration(self, qapp):
+        """Config panel should open the environment tab and focus the API key input."""
+        from gui.config_panel import ConfigPanel
+
+        panel = ConfigPanel()
+        panel.show()
+        panel.focus_openai_configuration()
+        qapp.processEvents()
+
+        assert panel.tabs.currentIndex() == panel._environment_tab_index
+        assert panel.api_key_input.hasFocus()
+        panel.close()
+
 
 class TestDashboardAndDiagnostics:
     """Smoke tests for reorganized high-level panels."""
@@ -317,6 +359,45 @@ class TestDashboardAndDiagnostics:
         assert panel is not None
         assert panel.run_all_btn.text() == "Executar tudo"
         panel.close()
+
+
+class TestOpenAIConfigDialog:
+    """Tests for the compact OpenAI configuration dialog."""
+
+    def test_dialog_creation(self, qapp):
+        """Dialog should be compact and start collapsed."""
+        from gui.openai_config_dialog import OpenAIConfigRequiredDialog
+
+        dialog = OpenAIConfigRequiredDialog()
+        assert dialog.windowTitle() == "Configuração da OpenAI necessária"
+        assert dialog.instructions_frame.isHidden()
+        dialog.close()
+
+    def test_dialog_instructions_toggle(self, qapp):
+        """Instructions area should expand only on demand."""
+        from gui.openai_config_dialog import OpenAIConfigRequiredDialog
+
+        dialog = OpenAIConfigRequiredDialog()
+        dialog.instructions_btn.click()
+
+        assert not dialog.instructions_frame.isHidden()
+        assert dialog.instructions_btn.text() == "Ocultar instruções"
+        dialog.close()
+
+
+class TestMainWindowOpenAIFlow:
+    """Tests for OpenAI configuration navigation from the main window."""
+
+    def test_open_openai_settings_navigates_to_config(self, qapp):
+        """MainWindow should route the user to the environment settings tab."""
+        from gui.main_window import MainWindow
+
+        window = MainWindow(config=None, paths=None)
+        window._open_openai_settings()
+
+        assert window.stack.currentWidget() is window.config_panel
+        assert window.config_panel.tabs.currentIndex() == window.config_panel._environment_tab_index
+        window.close()
 
 
 class TestWorkerManager:

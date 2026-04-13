@@ -149,9 +149,6 @@ class CheckItemWidget(QFrame):
                 font-size: 12px;
                 color: #6b7280;
             }
-            QPushButton:checked {
-                transform: rotate(180deg);
-            }
         """)
         self.expand_btn.clicked.connect(self._toggle_details)
         header_layout.addWidget(self.expand_btn)
