@@ -35,13 +35,13 @@ class ConfigPanel(QWidget):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
         header_layout = QHBoxLayout()
 
         title = QLabel("Configuracoes")
-        title.setStyleSheet("font-size: 24px; font-weight: 600;")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -226,7 +226,7 @@ class ConfigPanel(QWidget):
             "A chave da API OpenAI deve ser definida na variavel de ambiente OPENAI_API_KEY\n"
             "ou no arquivo .env"
         )
-        api_label.setStyleSheet("color: #64748b;")
+        api_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         api_label.setWordWrap(True)
         api_layout.addWidget(api_label)
         content_layout.addWidget(api_group)
@@ -442,7 +442,7 @@ class ConfigPanel(QWidget):
         source_row = QHBoxLayout()
         source_row.addWidget(QLabel("Origem:"))
         self.api_source_label = QLabel("-")
-        self.api_source_label.setStyleSheet("color: #64748b;")
+        self.api_source_label.setStyleSheet("color: #6b7280;")
         source_row.addWidget(self.api_source_label)
         source_row.addStretch()
         api_layout.addLayout(source_row)
@@ -450,7 +450,7 @@ class ConfigPanel(QWidget):
         # Priority note row
         priority_row = QHBoxLayout()
         self.api_priority_label = QLabel("")
-        self.api_priority_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self.api_priority_label.setStyleSheet("color: #6b7280; font-size: 11px;")
         self.api_priority_label.setWordWrap(True)
         priority_row.addWidget(self.api_priority_label)
         api_layout.addLayout(priority_row)
@@ -459,7 +459,7 @@ class ConfigPanel(QWidget):
         preview_row = QHBoxLayout()
         preview_row.addWidget(QLabel("Valor atual:"))
         self.api_preview_label = QLabel("-")
-        self.api_preview_label.setStyleSheet("color: #64748b; font-family: monospace;")
+        self.api_preview_label.setStyleSheet("color: #6b7280; font-family: monospace;")
         preview_row.addWidget(self.api_preview_label)
         preview_row.addStretch()
         api_layout.addLayout(preview_row)
@@ -468,7 +468,7 @@ class ConfigPanel(QWidget):
         dotenv_row = QHBoxLayout()
         dotenv_row.addWidget(QLabel("Arquivo .env:"))
         self.dotenv_label = QLabel("-")
-        self.dotenv_label.setStyleSheet("color: #64748b;")
+        self.dotenv_label.setStyleSheet("color: #6b7280;")
         dotenv_row.addWidget(self.dotenv_label)
         dotenv_row.addStretch()
         api_layout.addLayout(dotenv_row)
@@ -476,7 +476,7 @@ class ConfigPanel(QWidget):
         # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet("color: #e2e8f0;")
+        separator.setStyleSheet("background-color: #2a2f3a;")
         api_layout.addWidget(separator)
 
         # API Key input section
@@ -534,7 +534,7 @@ class ConfigPanel(QWidget):
             "Valida a chave API e testa a conexao com OpenAI.\n"
             "O teste verifica: resolucao da chave, inicializacao do cliente e conectividade de rede."
         )
-        test_desc.setStyleSheet("color: #64748b;")
+        test_desc.setStyleSheet("color: #6b7280; font-size: 12px;")
         test_desc.setWordWrap(True)
         test_layout.addWidget(test_desc)
 
@@ -543,7 +543,7 @@ class ConfigPanel(QWidget):
         status_row.addWidget(QLabel("Status:"))
         self.test_status_badge = QLabel("NAO TESTADO")
         self.test_status_badge.setStyleSheet(
-            "background-color: #64748b; color: white; padding: 2px 8px; "
+            "background-color: #6b7280; color: white; padding: 2px 8px; "
             "border-radius: 4px; font-weight: 600; font-size: 11px;"
         )
         status_row.addWidget(self.test_status_badge)
@@ -554,7 +554,7 @@ class ConfigPanel(QWidget):
         timestamp_row = QHBoxLayout()
         timestamp_row.addWidget(QLabel("Ultimo teste:"))
         self.test_timestamp_label = QLabel("-")
-        self.test_timestamp_label.setStyleSheet("color: #64748b;")
+        self.test_timestamp_label.setStyleSheet("color: #6b7280;")
         timestamp_row.addWidget(self.test_timestamp_label)
         timestamp_row.addStretch()
         test_layout.addLayout(timestamp_row)
@@ -578,7 +578,7 @@ class ConfigPanel(QWidget):
 
         # Progress indicator
         self.test_progress_label = QLabel("")
-        self.test_progress_label.setStyleSheet("color: #3b82f6; font-style: italic;")
+        self.test_progress_label.setStyleSheet("color: #4f8cff; font-style: italic;")
         test_layout.addWidget(self.test_progress_label)
 
         # Result summary
@@ -588,15 +588,15 @@ class ConfigPanel(QWidget):
 
         # Details area (collapsible-style)
         details_label = QLabel("Detalhes:")
-        details_label.setStyleSheet("color: #64748b; margin-top: 8px;")
+        details_label.setStyleSheet("color: #6b7280; margin-top: 8px;")
         test_layout.addWidget(details_label)
 
         self.test_details_text = QTextEdit()
         self.test_details_text.setReadOnly(True)
         self.test_details_text.setMaximumHeight(120)
         self.test_details_text.setStyleSheet(
-            "background-color: #f8fafc; border: 1px solid #e2e8f0; "
-            "font-family: monospace; font-size: 11px;"
+            "background-color: #0f1115; border: 1px solid #2a2f3a; "
+            "font-family: monospace; font-size: 11px; color: #c9d1d9;"
         )
         self.test_details_text.setPlaceholderText("Execute um teste para ver os detalhes...")
         test_layout.addWidget(self.test_details_text)
@@ -625,7 +625,7 @@ class ConfigPanel(QWidget):
 """)
         from PySide6.QtCore import Qt
         help_text.setTextFormat(Qt.TextFormat.RichText)
-        help_text.setStyleSheet("color: #64748b; font-size: 12px;")
+        help_text.setStyleSheet("color: #6b7280; font-size: 12px;")
         help_text.setWordWrap(True)
         help_layout.addWidget(help_text)
 
@@ -740,7 +740,7 @@ class ConfigPanel(QWidget):
                     self.api_source_label.setStyleSheet("color: #3b82f6;")
                 else:
                     self.api_source_label.setText("-")
-                    self.api_source_label.setStyleSheet("color: #64748b;")
+                    self.api_source_label.setStyleSheet("color: #6b7280;")
 
                 self.api_priority_label.setText(res.priority_note)
 
@@ -756,10 +756,10 @@ class ConfigPanel(QWidget):
                     if res.dotenv_value:
                         self.dotenv_label.setStyleSheet("color: #22c55e;")
                     else:
-                        self.dotenv_label.setStyleSheet("color: #64748b;")
+                        self.dotenv_label.setStyleSheet("color: #6b7280;")
                 else:
                     self.dotenv_label.setText("Nao encontrado")
-                    self.dotenv_label.setStyleSheet("color: #64748b;")
+                    self.dotenv_label.setStyleSheet("color: #6b7280;")
             else:
                 # Fallback if no resolution
                 self.api_source_label.setText(diag.openai_key.source or "-")
@@ -774,7 +774,7 @@ class ConfigPanel(QWidget):
                     self.dotenv_label.setStyleSheet("color: #22c55e;")
                 else:
                     self.dotenv_label.setText("Nao encontrado")
-                    self.dotenv_label.setStyleSheet("color: #64748b;")
+                    self.dotenv_label.setStyleSheet("color: #6b7280;")
 
         except Exception as e:
             self.api_status_label.setText(f"ERRO: {e}")

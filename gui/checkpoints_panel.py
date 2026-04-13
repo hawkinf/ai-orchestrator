@@ -99,31 +99,31 @@ class MetricCardWidget(QFrame):
         """Setup the widget."""
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: #1e293b;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 12px;
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 6px;
+                padding: 10px;
             }}
         """)
-        self.setMinimumWidth(100)
-        self.setMaximumWidth(150)
+        self.setMinimumWidth(90)
+        self.setMaximumWidth(140)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(2)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         self.value_label = QLabel(str(value))
         self.value_label.setStyleSheet(f"""
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 20px;
+            font-weight: 600;
             color: {color};
         """)
         layout.addWidget(self.value_label)
 
         self.label_label = QLabel(label)
         self.label_label.setStyleSheet("""
-            font-size: 12px;
-            color: #94a3b8;
+            font-size: 11px;
+            color: #6b7280;
         """)
         layout.addWidget(self.label_label)
 
@@ -146,9 +146,9 @@ class MetricsBar(QWidget):
         layout.setSpacing(12)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create cards
+        # Create cards - updated colors for dark theme
         card_specs = [
-            ("total", "Total", "#64748b"),
+            ("total", "Total", "#4f8cff"),
             ("pending", "Pendentes", "#f59e0b"),
             ("approved", "Aprovados", "#22c55e"),
             ("rejected", "Rejeitados", "#ef4444"),
@@ -383,22 +383,22 @@ class CheckpointDetailPanel(QFrame):
 
     def _setup_ui(self):
         """Setup the panel."""
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(320)
         self.setStyleSheet("""
             QFrame {
-                background-color: #1e293b;
-                border: 1px solid #334155;
-                border-radius: 8px;
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 6px;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.setContentsMargins(14, 14, 14, 14)
 
         # Title
         self.title_label = QLabel("Selecione um checkpoint")
-        self.title_label.setStyleSheet("font-size: 16px; font-weight: 600; color: #f1f5f9;")
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #e6edf3;")
         layout.addWidget(self.title_label)
 
         # Status badges
@@ -457,7 +457,7 @@ class CheckpointDetailPanel(QFrame):
 
         self.risk_label = QLabel()
         self.risk_label.setWordWrap(True)
-        self.risk_label.setStyleSheet("color: #f97316;")
+        self.risk_label.setStyleSheet("color: #f59e0b;")
         risk_layout.addWidget(self.risk_label)
 
         self.recommendation_label = QLabel()
@@ -466,7 +466,7 @@ class CheckpointDetailPanel(QFrame):
 
         self.action_label = QLabel()
         self.action_label.setWordWrap(True)
-        self.action_label.setStyleSheet("color: #94a3b8;")
+        self.action_label.setStyleSheet("color: #6b7280;")
         risk_layout.addWidget(self.action_label)
 
         content_layout.addWidget(risk_group)
@@ -476,7 +476,7 @@ class CheckpointDetailPanel(QFrame):
         command_layout = QVBoxLayout(self.command_group)
         self.command_text = QLabel()
         self.command_text.setWordWrap(True)
-        self.command_text.setStyleSheet("font-family: monospace; background: #0f172a; padding: 8px; border-radius: 4px;")
+        self.command_text.setStyleSheet("font-family: monospace; background: #0f1115; padding: 8px; border-radius: 4px; color: #c9d1d9;")
         command_layout.addWidget(self.command_text)
         content_layout.addWidget(self.command_group)
         self.command_group.hide()
@@ -701,13 +701,13 @@ class CheckpointsPanel(QWidget):
         """Setup the panel UI."""
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
         header_layout = QHBoxLayout()
 
         title = QLabel("Centro de Checkpoints")
-        title.setStyleSheet("font-size: 20px; font-weight: 600;")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -764,7 +764,7 @@ class CheckpointsPanel(QWidget):
 
         # Loading indicator
         self.loading_label = QLabel("Carregando...")
-        self.loading_label.setStyleSheet("color: #94a3b8;")
+        self.loading_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         self.loading_label.hide()
         layout.addWidget(self.loading_label)
 

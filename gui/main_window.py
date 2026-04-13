@@ -38,59 +38,93 @@ from .replay_panel import ReplayPanel
 
 
 class Sidebar(QFrame):
-    """Sidebar navigation widget."""
+    """Sidebar navigation widget - Modern compact design."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(220)
+        self.setFixedWidth(200)
         self._buttons = {}
         self._setup_ui()
 
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        layout.setContentsMargins(8, 16, 8, 16)
+        layout.setSpacing(2)
+        layout.setContentsMargins(8, 12, 8, 12)
 
-        # Logo/title
+        # Logo/title - compact
         title = QLabel("AI Orchestrator")
         title.setStyleSheet("""
-            color: #f8fafc;
-            font-size: 16px;
+            color: #e6edf3;
+            font-size: 14px;
             font-weight: 600;
-            padding: 8px 12px;
-            margin-bottom: 16px;
+            padding: 6px 8px 16px 8px;
         """)
         layout.addWidget(title)
 
-        # Navigation buttons
-        nav_items = [
+        # Navigation sections with compact buttons
+        # Main section
+        self._add_section_label(layout, "PRINCIPAL")
+        nav_main = [
             ("new_task", "Nova Tarefa"),
-            ("dashboard", "Central de Runs"),
+            ("dashboard", "Dashboard"),
             ("checkpoints", "Checkpoints"),
-            ("policies", "Politicas"),
+        ]
+        for key, label in nav_main:
+            self._add_nav_button(layout, key, label)
+
+        layout.addSpacing(12)
+
+        # Tools section
+        self._add_section_label(layout, "FERRAMENTAS")
+        nav_tools = [
+            ("policies", "Políticas"),
             ("replay", "Replay"),
-            ("runs", "Execucoes"),
-            ("diagnostics", "Diagnostico"),
-            ("logs", "Logs / Relatorios"),
-            ("settings", "Configuracoes"),
+            ("runs", "Execuções"),
+        ]
+        for key, label in nav_tools:
+            self._add_nav_button(layout, key, label)
+
+        layout.addSpacing(12)
+
+        # System section
+        self._add_section_label(layout, "SISTEMA")
+        nav_system = [
+            ("diagnostics", "Diagnóstico"),
+            ("logs", "Logs"),
+            ("settings", "Config"),
             ("help", "Ajuda"),
         ]
-
-        for key, label in nav_items:
-            btn = QPushButton(label)
-            btn.setCheckable(True)
-            btn.setProperty("nav_key", key)
-            self._buttons[key] = btn
-            layout.addWidget(btn)
+        for key, label in nav_system:
+            self._add_nav_button(layout, key, label)
 
         layout.addStretch()
 
-        # Version
+        # Version - subtle
         version_label = QLabel("v0.1.0")
-        version_label.setStyleSheet("color: #64748b; font-size: 11px; padding: 8px;")
+        version_label.setStyleSheet("color: #4b5563; font-size: 11px; padding: 6px 8px;")
         layout.addWidget(version_label)
+
+    def _add_section_label(self, layout, text: str):
+        """Add a section label."""
+        label = QLabel(text)
+        label.setStyleSheet("""
+            color: #6b7280;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 4px 8px 2px 8px;
+        """)
+        layout.addWidget(label)
+
+    def _add_nav_button(self, layout, key: str, label: str):
+        """Add a navigation button."""
+        btn = QPushButton(label)
+        btn.setCheckable(True)
+        btn.setProperty("nav_key", key)
+        self._buttons[key] = btn
+        layout.addWidget(btn)
 
     def get_button(self, key: str) -> Optional[QPushButton]:
         """Get a navigation button by key."""
@@ -103,7 +137,7 @@ class Sidebar(QFrame):
 
 
 class StatusWidget(QFrame):
-    """Status bar widget showing current run status."""
+    """Status bar widget showing current run status - Clean minimal design."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -112,52 +146,76 @@ class StatusWidget(QFrame):
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 4, 12, 4)
-        layout.setSpacing(16)
+        layout.setContentsMargins(12, 2, 12, 2)
+        layout.setSpacing(12)
 
-        # Run ID
-        self.run_label = QLabel("Nenhuma run ativa")
-        self.run_label.setStyleSheet("color: #64748b;")
+        # Run ID - compact
+        self.run_label = QLabel("Pronto")
+        self.run_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         layout.addWidget(self.run_label)
 
-        # Status
+        # Separator
+        sep = QLabel("•")
+        sep.setStyleSheet("color: #3d4451;")
+        layout.addWidget(sep)
+        self._sep1 = sep
+
+        # Status badge
         self.status_label = QLabel("")
+        self.status_label.setVisible(False)
         layout.addWidget(self.status_label)
 
-        # Phase
+        # Phase - subtle
         self.phase_label = QLabel("")
-        self.phase_label.setStyleSheet("color: #64748b;")
+        self.phase_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         layout.addWidget(self.phase_label)
 
-        # Iteration
+        # Iteration - subtle
         self.iter_label = QLabel("")
-        self.iter_label.setStyleSheet("color: #64748b;")
+        self.iter_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         layout.addWidget(self.iter_label)
 
         layout.addStretch()
 
-        # Progress
+        # Progress - minimal
         self.progress_bar = QProgressBar()
         self.progress_bar.setMaximum(0)
-        self.progress_bar.setFixedWidth(100)
-        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setFixedWidth(80)
+        self.progress_bar.setFixedHeight(3)
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
-        # Last update
+        # Last update - very subtle
         self.update_label = QLabel("")
-        self.update_label.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self.update_label.setStyleSheet("color: #4b5563; font-size: 11px;")
         layout.addWidget(self.update_label)
 
     def set_run(self, run_id: str, status: str, phase: str, iteration: int):
         """Update run status."""
-        self.run_label.setText(f"Run: {run_id}")
+        # Truncate run_id for display
+        short_id = run_id[:12] if len(run_id) > 12 else run_id
+        self.run_label.setText(short_id)
+        self.run_label.setStyleSheet("color: #9da7b3; font-size: 12px;")
+
+        # Status with color
         color = get_status_color(status)
-        self.status_label.setText(status.upper())
-        self.status_label.setStyleSheet(f"color: {color}; font-weight: 500;")
-        self.phase_label.setText(f"Fase: {phase}")
-        self.iter_label.setText(f"Iteracao: {iteration}")
-        self.update_label.setText(datetime.now().strftime("%H:%M:%S"))
+        self.status_label.setText(status.lower())
+        self.status_label.setStyleSheet(f"""
+            color: {color};
+            font-weight: 500;
+            font-size: 12px;
+            background-color: {color}20;
+            padding: 1px 6px;
+            border-radius: 3px;
+        """)
+        self.status_label.setVisible(True)
+        self._sep1.setVisible(True)
+
+        # Phase and iteration - compact
+        self.phase_label.setText(phase)
+        if iteration > 0:
+            self.iter_label.setText(f"#{iteration}")
+        self.update_label.setText(datetime.now().strftime("%H:%M"))
 
     def set_loading(self, loading: bool):
         """Show/hide loading indicator."""
@@ -165,8 +223,10 @@ class StatusWidget(QFrame):
 
     def clear(self):
         """Clear status."""
-        self.run_label.setText("Nenhuma run ativa")
-        self.status_label.setText("")
+        self.run_label.setText("Pronto")
+        self.run_label.setStyleSheet("color: #6b7280; font-size: 12px;")
+        self.status_label.setVisible(False)
+        self._sep1.setVisible(False)
         self.phase_label.setText("")
         self.iter_label.setText("")
         self.update_label.setText("")

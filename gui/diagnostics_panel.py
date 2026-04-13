@@ -31,10 +31,10 @@ from .diagnostics_worker import DiagnosticsManager
 logger = logging.getLogger("ai_orchestrator.diagnostics_panel")
 
 
-# Status colors
+# Status colors - updated for dark theme
 STATUS_COLORS = {
-    DiagnosticStatus.NOT_TESTED: "#94a3b8",  # gray
-    DiagnosticStatus.RUNNING: "#3b82f6",     # blue
+    DiagnosticStatus.NOT_TESTED: "#6b7280",  # gray
+    DiagnosticStatus.RUNNING: "#4f8cff",     # blue
     DiagnosticStatus.OK: "#22c55e",          # green
     DiagnosticStatus.WARNING: "#f59e0b",     # amber
     DiagnosticStatus.FAILED: "#ef4444",      # red
@@ -67,13 +67,13 @@ class CheckItemWidget(QFrame):
         self.setObjectName("checkItem")
         self.setStyleSheet("""
             QFrame#checkItem {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 6px;
                 padding: 8px;
             }
             QFrame#checkItem:hover {
-                border-color: #cbd5e1;
+                border-color: #3a4150;
             }
         """)
 
@@ -102,18 +102,18 @@ class CheckItemWidget(QFrame):
         title_layout.setSpacing(2)
 
         self.title_label = QLabel(self.check_state.title)
-        self.title_label.setStyleSheet("font-weight: 600; font-size: 13px; color: #1e293b;")
+        self.title_label.setStyleSheet("font-weight: 600; font-size: 13px; color: #e6edf3;")
         title_layout.addWidget(self.title_label)
 
         self.summary_label = QLabel()
-        self.summary_label.setStyleSheet("font-size: 12px; color: #64748b;")
+        self.summary_label.setStyleSheet("font-size: 12px; color: #6b7280;")
         title_layout.addWidget(self.summary_label)
 
         header_layout.addLayout(title_layout, 1)
 
         # Duration
         self.duration_label = QLabel()
-        self.duration_label.setStyleSheet("font-size: 11px; color: #94a3b8;")
+        self.duration_label.setStyleSheet("font-size: 11px; color: #6b7280;")
         header_layout.addWidget(self.duration_label)
 
         # Run button
@@ -121,16 +121,17 @@ class CheckItemWidget(QFrame):
         self.run_btn.setFixedSize(70, 28)
         self.run_btn.setStyleSheet("""
             QPushButton {
-                background-color: #f1f5f9;
-                border: 1px solid #e2e8f0;
+                background-color: #1c212b;
+                border: 1px solid #2a2f3a;
                 border-radius: 4px;
                 font-size: 11px;
+                color: #c9d1d9;
             }
             QPushButton:hover {
-                background-color: #e2e8f0;
+                background-color: #252b36;
             }
             QPushButton:disabled {
-                color: #94a3b8;
+                color: #6b7280;
             }
         """)
         self.run_btn.clicked.connect(lambda: self.run_check.emit(self.check_state.key))
@@ -145,7 +146,7 @@ class CheckItemWidget(QFrame):
                 background-color: transparent;
                 border: none;
                 font-size: 12px;
-                color: #64748b;
+                color: #6b7280;
             }
             QPushButton:checked {
                 transform: rotate(180deg);
@@ -165,7 +166,7 @@ class CheckItemWidget(QFrame):
 
         # Description
         self.description_label = QLabel(self.check_state.description)
-        self.description_label.setStyleSheet("color: #64748b; font-size: 12px;")
+        self.description_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         self.description_label.setWordWrap(True)
         details_layout.addWidget(self.description_label)
 
@@ -175,12 +176,13 @@ class CheckItemWidget(QFrame):
         self.details_text.setMaximumHeight(120)
         self.details_text.setStyleSheet("""
             QTextEdit {
-                background-color: #f8fafc;
-                border: 1px solid #e2e8f0;
+                background-color: #0f1115;
+                border: 1px solid #2a2f3a;
                 border-radius: 4px;
                 font-family: monospace;
                 font-size: 11px;
                 padding: 8px;
+                color: #c9d1d9;
             }
         """)
         details_layout.addWidget(self.details_text)
@@ -189,7 +191,8 @@ class CheckItemWidget(QFrame):
         self.recommendation_frame = QFrame()
         self.recommendation_frame.setStyleSheet("""
             QFrame {
-                background-color: #fef3c7;
+                background-color: #2a2418;
+                border: 1px solid #f59e0b40;
                 border-radius: 4px;
                 padding: 8px;
             }
@@ -198,11 +201,11 @@ class CheckItemWidget(QFrame):
         rec_layout.setContentsMargins(8, 6, 8, 6)
 
         rec_icon = QLabel("!")
-        rec_icon.setStyleSheet("font-weight: bold; color: #d97706;")
+        rec_icon.setStyleSheet("font-weight: bold; color: #f59e0b;")
         rec_layout.addWidget(rec_icon)
 
         self.recommendation_label = QLabel()
-        self.recommendation_label.setStyleSheet("color: #92400e; font-size: 12px;")
+        self.recommendation_label.setStyleSheet("color: #fbbf24; font-size: 12px;")
         self.recommendation_label.setWordWrap(True)
         rec_layout.addWidget(self.recommendation_label, 1)
 
@@ -266,22 +269,22 @@ class CheckItemWidget(QFrame):
         if self.check_state.is_critical and status in (DiagnosticStatus.FAILED, DiagnosticStatus.CRITICAL):
             self.setStyleSheet("""
                 QFrame#checkItem {
-                    background-color: #fef2f2;
-                    border: 1px solid #fecaca;
-                    border-radius: 8px;
+                    background-color: #1f1515;
+                    border: 1px solid #ef444440;
+                    border-radius: 6px;
                     padding: 8px;
                 }
             """)
         else:
             self.setStyleSheet("""
                 QFrame#checkItem {
-                    background-color: #ffffff;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 8px;
+                    background-color: #161a22;
+                    border: 1px solid #2a2f3a;
+                    border-radius: 6px;
                     padding: 8px;
                 }
                 QFrame#checkItem:hover {
-                    border-color: #cbd5e1;
+                    border-color: #3a4150;
                 }
             """)
 
@@ -320,13 +323,13 @@ class DiagnosticsPanel(QWidget):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
         header_layout = QHBoxLayout()
 
         title = QLabel("Diagnostico do Sistema")
-        title.setStyleSheet("font-size: 24px; font-weight: 600; color: #1e293b;")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -334,12 +337,12 @@ class DiagnosticsPanel(QWidget):
         # Status badge
         self.overall_badge = QLabel("Nao testado")
         self.overall_badge.setStyleSheet("""
-            background-color: #f1f5f9;
-            color: #64748b;
+            background-color: #1c212b;
+            color: #6b7280;
             font-weight: 600;
             padding: 8px 16px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
         """)
         header_layout.addWidget(self.overall_badge)
 
@@ -350,7 +353,7 @@ class DiagnosticsPanel(QWidget):
             "Verifique se todos os componentes estao prontos antes de iniciar uma tarefa. "
             "Clique em 'Executar Diagnostico' para testar todos os itens."
         )
-        desc.setStyleSheet("color: #64748b; margin-bottom: 8px;")
+        desc.setStyleSheet("color: #6b7280; font-size: 12px; margin-bottom: 8px;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -362,12 +365,12 @@ class DiagnosticsPanel(QWidget):
         self.progress_bar.setFixedHeight(4)
         self.progress_bar.setStyleSheet("""
             QProgressBar {
-                background-color: #e2e8f0;
+                background-color: #2a2f3a;
                 border: none;
                 border-radius: 2px;
             }
             QProgressBar::chunk {
-                background-color: #3b82f6;
+                background-color: #4f8cff;
                 border-radius: 2px;
             }
         """)
@@ -403,18 +406,18 @@ class DiagnosticsPanel(QWidget):
         self.run_all_btn = QPushButton("Executar Diagnostico Completo")
         self.run_all_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3b82f6;
+                background-color: #4f8cff;
                 color: white;
                 font-weight: 600;
-                padding: 12px 24px;
+                padding: 10px 20px;
                 border-radius: 6px;
-                font-size: 14px;
+                font-size: 13px;
             }
             QPushButton:hover {
-                background-color: #2563eb;
+                background-color: #3b7ae8;
             }
             QPushButton:disabled {
-                background-color: #94a3b8;
+                background-color: #6b7280;
             }
         """)
         self.run_all_btn.clicked.connect(self._run_all_checks)
@@ -618,7 +621,7 @@ class DiagnosticsPanel(QWidget):
             font-weight: 600;
             padding: 8px 16px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
         """)
 
     def _export_report(self):

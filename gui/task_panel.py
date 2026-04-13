@@ -1,12 +1,12 @@
-"""Task creation panel - Nova Tarefa."""
+"""Task creation panel - Nova Tarefa - Clean modern design."""
 
 from pathlib import Path
 from typing import Optional
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QComboBox, QCheckBox, QSpinBox, QGroupBox,
-    QLineEdit, QFileDialog, QFrame, QScrollArea, QSizePolicy,
+    QTextEdit, QComboBox, QCheckBox, QSpinBox,
+    QLineEdit, QFileDialog, QFrame, QScrollArea,
 )
 from PySide6.QtCore import Signal, Qt
 
@@ -14,9 +14,8 @@ from .ui_models import TaskConfig
 
 
 class TaskPanel(QWidget):
-    """Panel for creating and submitting new tasks."""
+    """Panel for creating and submitting new tasks - Clean design."""
 
-    # Signals
     task_submitted = Signal(TaskConfig)
 
     def __init__(self, parent=None):
@@ -26,266 +25,279 @@ class TaskPanel(QWidget):
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Header
-        header = QLabel("Nova Tarefa")
-        header.setObjectName("header")
-        header.setStyleSheet("font-size: 24px; font-weight: 600; color: #1e293b;")
-        layout.addWidget(header)
-
-        subheader = QLabel("Descreva a tarefa que deseja executar")
-        subheader.setObjectName("subheader")
-        subheader.setStyleSheet("color: #64748b; margin-bottom: 16px;")
-        layout.addWidget(subheader)
-
-        # Scroll area for content
+        # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
 
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setSpacing(16)
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(24)
+        content_layout.setContentsMargins(32, 28, 32, 28)
 
-        # Task description
-        task_group = self._create_task_group()
-        scroll_layout.addWidget(task_group)
+        # Header - compact
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(4)
 
-        # Project settings
-        project_group = self._create_project_group()
-        scroll_layout.addWidget(project_group)
+        header = QLabel("Nova Tarefa")
+        header.setStyleSheet("font-size: 18px; font-weight: 600; color: #e6edf3;")
+        header_layout.addWidget(header)
 
-        # Execution options
-        options_group = self._create_options_group()
-        scroll_layout.addWidget(options_group)
+        subheader = QLabel("Descreva o que você deseja realizar")
+        subheader.setStyleSheet("color: #6b7280; font-size: 13px;")
+        header_layout.addWidget(subheader)
 
-        # Config summary
-        self.summary_label = QLabel()
-        self.summary_label.setStyleSheet("""
-            background-color: #f1f5f9;
-            border-radius: 6px;
-            padding: 12px;
-            color: #64748b;
-        """)
-        self._update_summary()
-        scroll_layout.addWidget(self.summary_label)
+        content_layout.addLayout(header_layout)
 
-        scroll_layout.addStretch()
-        scroll.setWidget(scroll_content)
+        # Task description - main focus area
+        task_section = self._create_task_section()
+        content_layout.addWidget(task_section)
+
+        # Settings section - collapsible appearance
+        settings_section = self._create_settings_section()
+        content_layout.addWidget(settings_section)
+
+        content_layout.addStretch()
+
+        scroll.setWidget(content)
         layout.addWidget(scroll, 1)
 
-        # Action buttons
-        buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(12)
+        # Bottom action bar - fixed
+        action_bar = self._create_action_bar()
+        layout.addWidget(action_bar)
 
-        self.clear_btn = QPushButton("Limpar")
-        self.clear_btn.setObjectName("secondary")
-        self.clear_btn.setFixedWidth(100)
-        self.clear_btn.clicked.connect(self._clear_form)
-        buttons_layout.addWidget(self.clear_btn)
+    def _create_task_section(self) -> QWidget:
+        """Create main task input section."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setSpacing(8)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        buttons_layout.addStretch()
-
-        self.submit_btn = QPushButton("Executar")
-        self.submit_btn.setFixedWidth(140)
-        self.submit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #22c55e;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-            }
-            QPushButton:hover {
-                background-color: #16a34a;
-            }
-        """)
-        self.submit_btn.clicked.connect(self._submit_task)
-        buttons_layout.addWidget(self.submit_btn)
-
-        layout.addLayout(buttons_layout)
-
-    def _create_task_group(self) -> QGroupBox:
-        """Create task description group."""
-        group = QGroupBox("Descricao da Tarefa")
-        layout = QVBoxLayout(group)
-
+        # Task input
         self.task_edit = QTextEdit()
         self.task_edit.setPlaceholderText(
-            "Descreva a tarefa aqui...\n\n"
-            "Exemplo:\n"
-            "- Corrigir bug de login\n"
-            "- Adicionar validacao de campos\n"
-            "- Rodar flutter analyze e flutter test"
+            "Descreva a tarefa em linguagem natural...\n\n"
+            "Exemplos:\n"
+            "• Corrigir o bug de login onde o usuário não consegue entrar\n"
+            "• Adicionar validação de email no formulário de cadastro\n"
+            "• Criar endpoint GET /api/users com paginação"
         )
-        self.task_edit.setMinimumHeight(200)
+        self.task_edit.setMinimumHeight(180)
+        self.task_edit.setMaximumHeight(280)
         self.task_edit.setStyleSheet("""
             QTextEdit {
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 8px;
+                padding: 12px;
                 font-size: 14px;
-                line-height: 1.5;
+                line-height: 1.6;
+                color: #e6edf3;
+            }
+            QTextEdit:focus {
+                border-color: #4f8cff;
             }
         """)
-        self.task_edit.textChanged.connect(self._update_summary)
+        self.task_edit.textChanged.connect(self._on_task_changed)
         layout.addWidget(self.task_edit)
 
-        # Character counter
+        # Character counter - subtle
         self.char_counter = QLabel("0 caracteres")
-        self.char_counter.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self.char_counter.setStyleSheet("color: #4b5563; font-size: 11px;")
         self.char_counter.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.task_edit.textChanged.connect(self._update_char_count)
         layout.addWidget(self.char_counter)
 
-        return group
+        return container
 
-    def _create_project_group(self) -> QGroupBox:
-        """Create project settings group."""
-        group = QGroupBox("Projeto")
-        layout = QVBoxLayout(group)
+    def _create_settings_section(self) -> QWidget:
+        """Create settings section with clean layout."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Section header
+        section_header = QLabel("Configurações")
+        section_header.setStyleSheet("""
+            color: #9da7b3;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            padding-bottom: 4px;
+        """)
+        layout.addWidget(section_header)
+
+        # Settings grid - two columns
+        grid = QHBoxLayout()
+        grid.setSpacing(24)
+
+        # Left column
+        left_col = QVBoxLayout()
+        left_col.setSpacing(12)
 
         # Project path
-        path_layout = QHBoxLayout()
-        path_label = QLabel("Diretorio:")
-        path_label.setFixedWidth(80)
-        path_layout.addWidget(path_label)
-
-        self.path_edit = QLineEdit()
-        self.path_edit.setPlaceholderText(".")
-        self.path_edit.setText(".")
-        path_layout.addWidget(self.path_edit)
-
-        browse_btn = QPushButton("...")
-        browse_btn.setFixedWidth(40)
-        browse_btn.setObjectName("secondary")
-        browse_btn.clicked.connect(self._browse_path)
-        path_layout.addWidget(browse_btn)
-
-        layout.addLayout(path_layout)
+        path_row = self._create_field_row("Diretório", self._create_path_input())
+        left_col.addLayout(path_row)
 
         # Profile
-        profile_layout = QHBoxLayout()
-        profile_label = QLabel("Perfil:")
-        profile_label.setFixedWidth(80)
-        profile_layout.addWidget(profile_label)
-
         self.profile_combo = QComboBox()
         self.profile_combo.addItems(["flutter", "python", "generic"])
         self.profile_combo.setCurrentText("flutter")
-        self.profile_combo.currentTextChanged.connect(self._update_summary)
-        profile_layout.addWidget(self.profile_combo)
-        profile_layout.addStretch()
-
-        layout.addLayout(profile_layout)
-
-        # Mode
-        mode_layout = QHBoxLayout()
-        mode_label = QLabel("Modo:")
-        mode_label.setFixedWidth(80)
-        mode_layout.addWidget(mode_label)
-
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems([
-            "Execucao Completa",
-            "Somente Planejar",
-            "Planejar + Executar",
-        ])
-        self.mode_combo.currentTextChanged.connect(self._update_summary)
-        mode_layout.addWidget(self.mode_combo)
-        mode_layout.addStretch()
-
-        layout.addLayout(mode_layout)
-
-        return group
-
-    def _create_options_group(self) -> QGroupBox:
-        """Create execution options group."""
-        group = QGroupBox("Opcoes de Execucao")
-        layout = QVBoxLayout(group)
-
-        # Checkboxes row 1
-        row1 = QHBoxLayout()
-
-        self.auto_validate_cb = QCheckBox("Auto Validar")
-        self.auto_validate_cb.setChecked(True)
-        self.auto_validate_cb.stateChanged.connect(self._update_summary)
-        row1.addWidget(self.auto_validate_cb)
-
-        self.auto_commit_cb = QCheckBox("Auto Commit")
-        self.auto_commit_cb.setChecked(False)
-        self.auto_commit_cb.stateChanged.connect(self._update_summary)
-        row1.addWidget(self.auto_commit_cb)
-
-        self.auto_push_cb = QCheckBox("Auto Push/Sync")
-        self.auto_push_cb.setChecked(False)
-        self.auto_push_cb.stateChanged.connect(self._update_summary)
-        row1.addWidget(self.auto_push_cb)
-
-        row1.addStretch()
-        layout.addLayout(row1)
-
-        # Checkboxes row 2
-        row2 = QHBoxLayout()
-
-        self.require_approval_cb = QCheckBox("Exigir aprovacao em mudancas destrutivas")
-        self.require_approval_cb.setChecked(True)
-        self.require_approval_cb.stateChanged.connect(self._update_summary)
-        row2.addWidget(self.require_approval_cb)
-
-        row2.addStretch()
-        layout.addLayout(row2)
+        self.profile_combo.setFixedWidth(140)
+        profile_row = self._create_field_row("Perfil", self.profile_combo)
+        left_col.addLayout(profile_row)
 
         # Max iterations
-        iter_layout = QHBoxLayout()
-        iter_label = QLabel("Max Iteracoes:")
-        iter_layout.addWidget(iter_label)
-
         self.max_iter_spin = QSpinBox()
         self.max_iter_spin.setRange(1, 10)
         self.max_iter_spin.setValue(3)
         self.max_iter_spin.setFixedWidth(80)
-        self.max_iter_spin.valueChanged.connect(self._update_summary)
-        iter_layout.addWidget(self.max_iter_spin)
+        iter_row = self._create_field_row("Iterações", self.max_iter_spin)
+        left_col.addLayout(iter_row)
 
-        iter_layout.addStretch()
-        layout.addLayout(iter_layout)
+        grid.addLayout(left_col)
 
-        return group
+        # Right column - options
+        right_col = QVBoxLayout()
+        right_col.setSpacing(8)
 
-    def _update_char_count(self):
-        """Update character counter."""
+        options_label = QLabel("Opções")
+        options_label.setStyleSheet("color: #6b7280; font-size: 12px; margin-bottom: 4px;")
+        right_col.addWidget(options_label)
+
+        self.auto_validate_cb = QCheckBox("Validar automaticamente")
+        self.auto_validate_cb.setChecked(True)
+        right_col.addWidget(self.auto_validate_cb)
+
+        self.auto_commit_cb = QCheckBox("Commit automático")
+        self.auto_commit_cb.setChecked(False)
+        right_col.addWidget(self.auto_commit_cb)
+
+        self.require_approval_cb = QCheckBox("Exigir aprovação")
+        self.require_approval_cb.setChecked(True)
+        self.require_approval_cb.setToolTip("Pausa para aprovação antes de mudanças importantes")
+        right_col.addWidget(self.require_approval_cb)
+
+        self.auto_push_cb = QCheckBox("Push automático")
+        self.auto_push_cb.setChecked(False)
+        right_col.addWidget(self.auto_push_cb)
+
+        right_col.addStretch()
+        grid.addLayout(right_col)
+        grid.addStretch()
+
+        layout.addLayout(grid)
+
+        return container
+
+    def _create_path_input(self) -> QWidget:
+        """Create path input with browse button."""
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setSpacing(6)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.path_edit = QLineEdit()
+        self.path_edit.setPlaceholderText(".")
+        self.path_edit.setText(".")
+        self.path_edit.setFixedWidth(200)
+        layout.addWidget(self.path_edit)
+
+        browse_btn = QPushButton("...")
+        browse_btn.setFixedSize(32, 28)
+        browse_btn.setProperty("ghost", True)
+        browse_btn.clicked.connect(self._browse_path)
+        layout.addWidget(browse_btn)
+
+        return container
+
+    def _create_field_row(self, label_text: str, widget: QWidget) -> QHBoxLayout:
+        """Create a labeled field row."""
+        row = QHBoxLayout()
+        row.setSpacing(12)
+
+        label = QLabel(label_text)
+        label.setFixedWidth(70)
+        label.setStyleSheet("color: #6b7280; font-size: 12px;")
+        row.addWidget(label)
+        row.addWidget(widget)
+        row.addStretch()
+
+        return row
+
+    def _create_action_bar(self) -> QWidget:
+        """Create bottom action bar."""
+        bar = QFrame()
+        bar.setStyleSheet("""
+            QFrame {
+                background-color: #0d1117;
+                border-top: 1px solid #2a2f3a;
+            }
+        """)
+
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(24, 12, 24, 12)
+        layout.setSpacing(12)
+
+        # Summary - compact
+        self.summary_label = QLabel()
+        self.summary_label.setStyleSheet("color: #6b7280; font-size: 12px;")
+        self._update_summary()
+        layout.addWidget(self.summary_label)
+
+        layout.addStretch()
+
+        # Clear button
+        self.clear_btn = QPushButton("Limpar")
+        self.clear_btn.setProperty("ghost", True)
+        self.clear_btn.setFixedWidth(80)
+        self.clear_btn.clicked.connect(self._clear_form)
+        layout.addWidget(self.clear_btn)
+
+        # Submit button
+        self.submit_btn = QPushButton("Executar")
+        self.submit_btn.setFixedWidth(120)
+        self.submit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #22c55e;
+                color: white;
+                font-weight: 600;
+                padding: 8px 20px;
+            }
+            QPushButton:hover {
+                background-color: #16a34a;
+            }
+            QPushButton:disabled {
+                background-color: #2d3442;
+                color: #4b5563;
+            }
+        """)
+        self.submit_btn.clicked.connect(self._submit_task)
+        layout.addWidget(self.submit_btn)
+
+        return bar
+
+    def _on_task_changed(self):
+        """Handle task text change."""
         count = len(self.task_edit.toPlainText())
         self.char_counter.setText(f"{count} caracteres")
+        self._update_summary()
 
     def _update_summary(self):
         """Update configuration summary."""
-        task_len = len(self.task_edit.toPlainText())
-        profile = self.profile_combo.currentText()
-        mode = self.mode_combo.currentText()
-        max_iter = self.max_iter_spin.value()
-
-        opts = []
-        if self.auto_validate_cb.isChecked():
-            opts.append("validar")
-        if self.auto_commit_cb.isChecked():
-            opts.append("commit")
-        if self.auto_push_cb.isChecked():
-            opts.append("push")
-        if self.require_approval_cb.isChecked():
-            opts.append("checkpoint")
-
-        opts_str = ", ".join(opts) if opts else "nenhuma"
-
-        summary = (
-            f"Perfil: {profile} | Modo: {mode} | "
-            f"Max Iteracoes: {max_iter} | Opcoes: {opts_str}"
-        )
-        self.summary_label.setText(summary)
+        profile = self.profile_combo.currentText() if hasattr(self, 'profile_combo') else 'flutter'
+        max_iter = self.max_iter_spin.value() if hasattr(self, 'max_iter_spin') else 3
+        self.summary_label.setText(f"{profile} • {max_iter} iterações")
 
     def _browse_path(self):
         """Open directory browser."""
         path = QFileDialog.getExistingDirectory(
             self,
-            "Selecionar Diretorio do Projeto",
+            "Selecionar Diretório",
             self.path_edit.text() or ".",
         )
         if path:
@@ -296,12 +308,11 @@ class TaskPanel(QWidget):
         self.task_edit.clear()
         self.path_edit.setText(".")
         self.profile_combo.setCurrentIndex(0)
-        self.mode_combo.setCurrentIndex(0)
+        self.max_iter_spin.setValue(3)
         self.auto_validate_cb.setChecked(True)
         self.auto_commit_cb.setChecked(False)
         self.auto_push_cb.setChecked(False)
         self.require_approval_cb.setChecked(True)
-        self.max_iter_spin.setValue(3)
 
     def _submit_task(self):
         """Submit the task."""
@@ -309,101 +320,41 @@ class TaskPanel(QWidget):
         if not task_text:
             return
 
-        # Map mode
-        mode_map = {
-            "Execucao Completa": "full",
-            "Somente Planejar": "plan_only",
-            "Planejar + Executar": "plan_execute",
-        }
-        mode = mode_map.get(self.mode_combo.currentText(), "full")
-
         config = TaskConfig(
             task_description=task_text,
             project_path=self.path_edit.text() or ".",
             profile=self.profile_combo.currentText(),
-            mode=mode,
+            max_iterations=self.max_iter_spin.value(),
             auto_validate=self.auto_validate_cb.isChecked(),
             auto_commit=self.auto_commit_cb.isChecked(),
             auto_push=self.auto_push_cb.isChecked(),
             require_approval_destructive=self.require_approval_cb.isChecked(),
-            max_iterations=self.max_iter_spin.value(),
         )
 
         self.task_submitted.emit(config)
 
-    def set_task(self, task: str):
-        """Set task text (for resuming or templates)."""
-        self.task_edit.setPlainText(task)
+    def set_submitting(self, submitting: bool):
+        """Set submitting state."""
+        self.submit_btn.setEnabled(not submitting)
+        self.submit_btn.setText("Executando..." if submitting else "Executar")
 
-    def set_profile(self, profile: str):
-        """Set profile selection."""
-        index = self.profile_combo.findText(profile)
-        if index >= 0:
-            self.profile_combo.setCurrentIndex(index)
+    def set_task_text(self, text: str):
+        """Set task description text."""
+        self.task_edit.setPlainText(text)
 
-    def set_path(self, path: str):
-        """Set project path."""
-        self.path_edit.setText(path)
+    def get_task_text(self) -> str:
+        """Get task description text."""
+        return self.task_edit.toPlainText()
 
-    def get_config(self) -> Optional[TaskConfig]:
-        """Get current configuration without submitting."""
-        task_text = self.task_edit.toPlainText().strip()
-        if not task_text:
-            return None
-
-        mode_map = {
-            "Execucao Completa": "full",
-            "Somente Planejar": "plan_only",
-            "Planejar + Executar": "plan_execute",
-        }
-        mode = mode_map.get(self.mode_combo.currentText(), "full")
-
+    def get_config(self) -> TaskConfig:
+        """Get current form configuration as TaskConfig."""
         return TaskConfig(
-            task_description=task_text,
+            task_description=self.task_edit.toPlainText().strip(),
             project_path=self.path_edit.text() or ".",
             profile=self.profile_combo.currentText(),
-            mode=mode,
+            max_iterations=self.max_iter_spin.value(),
             auto_validate=self.auto_validate_cb.isChecked(),
             auto_commit=self.auto_commit_cb.isChecked(),
             auto_push=self.auto_push_cb.isChecked(),
             require_approval_destructive=self.require_approval_cb.isChecked(),
-            max_iterations=self.max_iter_spin.value(),
         )
-
-    def set_submitting(self, is_submitting: bool):
-        """Enable or disable the form while a task is submitting."""
-        self.submit_btn.setEnabled(not is_submitting)
-        self.clear_btn.setEnabled(not is_submitting)
-        self.task_edit.setEnabled(not is_submitting)
-        self.profile_combo.setEnabled(not is_submitting)
-        self.mode_combo.setEnabled(not is_submitting)
-        self.path_edit.setEnabled(not is_submitting)
-        self.auto_validate_cb.setEnabled(not is_submitting)
-        self.auto_commit_cb.setEnabled(not is_submitting)
-        self.auto_push_cb.setEnabled(not is_submitting)
-        self.require_approval_cb.setEnabled(not is_submitting)
-        self.max_iter_spin.setEnabled(not is_submitting)
-
-        if is_submitting:
-            self.submit_btn.setText("Executando...")
-            self.submit_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #94a3b8;
-                    font-size: 14px;
-                    font-weight: 600;
-                    padding: 12px 24px;
-                }
-            """)
-        else:
-            self.submit_btn.setText("Executar")
-            self.submit_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #22c55e;
-                    font-size: 14px;
-                    font-weight: 600;
-                    padding: 12px 24px;
-                }
-                QPushButton:hover {
-                    background-color: #16a34a;
-                }
-            """)

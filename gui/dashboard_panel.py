@@ -42,22 +42,23 @@ class MetricCardWidget(QFrame):
         """Setup the UI."""
         self.setStyleSheet(f"""
             QFrame#metric_card {{
-                background-color: #1e293b;
-                border-radius: 8px;
-                padding: 12px;
-                min-width: 100px;
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 6px;
+                padding: 10px;
+                min-width: 90px;
             }}
         """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(2)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         # Value
         self.value_label = QLabel(str(value))
         self.value_label.setStyleSheet(f"""
-            font-size: 28px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: 600;
             color: {color};
         """)
         layout.addWidget(self.value_label)
@@ -65,8 +66,8 @@ class MetricCardWidget(QFrame):
         # Label
         self.label_label = QLabel(label)
         self.label_label.setStyleSheet("""
-            font-size: 12px;
-            color: #94a3b8;
+            font-size: 11px;
+            color: #6b7280;
         """)
         layout.addWidget(self.label_label)
 
@@ -86,16 +87,16 @@ class MetricsBar(QFrame):
     def _setup_ui(self):
         """Setup the UI."""
         layout = QHBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create cards
+        # Create cards - updated colors for dark theme
         card_configs = [
-            ("total", "Total", 0, "#3b82f6"),
+            ("total", "Total", 0, "#4f8cff"),
             ("running", "Em Execucao", 0, "#f59e0b"),
             ("completed", "Concluidas", 0, "#22c55e"),
             ("failed", "Falhas", 0, "#ef4444"),
-            ("checkpoint", "Checkpoint", 0, "#a855f7"),
+            ("checkpoint", "Checkpoint", 0, "#a78bfa"),
             ("blocked", "Bloqueadas", 0, "#6b7280"),
         ]
 
@@ -369,19 +370,20 @@ class RunDetailPreview(QFrame):
         self.setObjectName("preview_panel")
         self.setStyleSheet("""
             QFrame#preview_panel {
-                background-color: #1e293b;
-                border-radius: 8px;
+                background-color: #161a22;
+                border: 1px solid #2a2f3a;
+                border-radius: 6px;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.setContentsMargins(14, 14, 14, 14)
 
         # Header
         header_layout = QHBoxLayout()
         self.title_label = QLabel("Selecione uma run")
-        self.title_label.setStyleSheet("font-size: 16px; font-weight: 600; color: #f8fafc;")
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
 
@@ -413,7 +415,7 @@ class RunDetailPreview(QFrame):
         # Separator
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("background-color: #334155;")
+        sep.setStyleSheet("background-color: #2a2f3a;")
         content_layout.addWidget(sep)
 
         # Plan objective
@@ -477,11 +479,11 @@ class RunDetailPreview(QFrame):
         """Create an info row with label."""
         row = QHBoxLayout()
         lbl = QLabel(label)
-        lbl.setStyleSheet("color: #64748b; min-width: 70px;")
+        lbl.setStyleSheet("color: #6b7280; font-size: 12px; min-width: 70px;")
         row.addWidget(lbl)
 
         value = QLabel("-")
-        value.setStyleSheet("color: #e2e8f0;")
+        value.setStyleSheet("color: #c9d1d9; font-size: 12px;")
         value.setWordWrap(True)
         row.addWidget(value, 1)
 
@@ -534,15 +536,15 @@ class RunDetailPreview(QFrame):
             self.error_label.setStyleSheet("color: #ef4444;")
         else:
             self.error_label.setText("-")
-            self.error_label.setStyleSheet("color: #e2e8f0;")
+            self.error_label.setStyleSheet("color: #c9d1d9;")
 
         # Checkpoint
         if run.has_checkpoint:
             self.checkpoint_label.setText(run.checkpoint_reason or "Pendente")
-            self.checkpoint_label.setStyleSheet("color: #a855f7;")
+            self.checkpoint_label.setStyleSheet("color: #a78bfa;")
         else:
             self.checkpoint_label.setText("-")
-            self.checkpoint_label.setStyleSheet("color: #e2e8f0;")
+            self.checkpoint_label.setStyleSheet("color: #c9d1d9;")
 
         # Risks
         if run.risks:
@@ -564,7 +566,7 @@ class RunDetailPreview(QFrame):
             self.error_label, self.checkpoint_label, self.risks_label
         ]:
             lbl.setText("-")
-            lbl.setStyleSheet("color: #e2e8f0;")
+            lbl.setStyleSheet("color: #c9d1d9; font-size: 12px;")
 
         self.resume_btn.setVisible(False)
 
@@ -610,13 +612,13 @@ class DashboardPanel(QWidget):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         # Header
         header_layout = QHBoxLayout()
 
         title = QLabel("Central de Runs")
-        title.setStyleSheet("font-size: 20px; font-weight: 600; color: #f8fafc;")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -675,13 +677,13 @@ class DashboardPanel(QWidget):
         status_layout = QHBoxLayout()
 
         self.status_label = QLabel("Aguardando...")
-        self.status_label.setStyleSheet("color: #64748b;")
+        self.status_label.setStyleSheet("color: #6b7280; font-size: 11px;")
         status_layout.addWidget(self.status_label)
 
         status_layout.addStretch()
 
         self.last_update_label = QLabel("")
-        self.last_update_label.setStyleSheet("color: #64748b;")
+        self.last_update_label.setStyleSheet("color: #6b7280; font-size: 11px;")
         status_layout.addWidget(self.last_update_label)
 
         layout.addLayout(status_layout)

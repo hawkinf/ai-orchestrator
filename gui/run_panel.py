@@ -43,7 +43,7 @@ class RunListPanel(QWidget):
         header_layout = QHBoxLayout()
 
         title = QLabel("Execucoes")
-        title.setStyleSheet("font-size: 18px; font-weight: 600;")
+        title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -217,7 +217,7 @@ class RunDetailPanel(QWidget):
         header_layout = QHBoxLayout()
 
         self.title_label = QLabel("Detalhes da Run")
-        self.title_label.setStyleSheet("font-size: 18px; font-weight: 600;")
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(self.title_label)
 
         header_layout.addStretch()
@@ -320,7 +320,7 @@ class RunDetailPanel(QWidget):
         task_layout = QVBoxLayout(self.task_group)
         self.task_label = QLabel()
         self.task_label.setWordWrap(True)
-        self.task_label.setStyleSheet("color: #1e293b;")
+        self.task_label.setStyleSheet("color: #c9d1d9;")
         task_layout.addWidget(self.task_label)
         content_layout.addWidget(self.task_group)
 
@@ -336,7 +336,7 @@ class RunDetailPanel(QWidget):
         self.checkpoint_group = QGroupBox("Checkpoint Pendente")
         self.checkpoint_group.setStyleSheet("""
             QGroupBox {
-                background-color: #fef3c7;
+                background-color: #2a2418;
                 border-color: #f59e0b;
             }
         """)
@@ -378,7 +378,7 @@ class RunDetailPanel(QWidget):
         # Header
         header_layout = QHBoxLayout()
         header_label = QLabel("Arquivos gerados durante a execucao")
-        header_label.setStyleSheet("color: #64748b;")
+        header_label.setStyleSheet("color: #6b7280; font-size: 12px;")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
@@ -647,7 +647,7 @@ class RunPanel(QWidget):
     def _setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         # Splitter for list and detail
         splitter = QSplitter(Qt.Orientation.Vertical)
