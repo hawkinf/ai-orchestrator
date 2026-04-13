@@ -67,6 +67,7 @@ python -m gui.app
 The GUI provides:
 
 - **Nova Tarefa**: Create and submit tasks with full configuration
+- **Central de Runs**: Dashboard with metrics, filters, and quick actions (see below)
 - **Execucoes**: View run history, details, and artifacts
 - **Diagnostico**: Pre-flight system checks (see Diagnostics Panel below)
 - **Logs / Relatorios**: Browse logs and reports
@@ -276,6 +277,79 @@ The GUI provides real-time progress updates during pipeline execution:
 - View all generated files (JSON, logs, reports, patches)
 - Double-click to open with default application
 
+## Central de Runs (Dashboard)
+
+The Runs Dashboard provides a consolidated operational view of all executions. Access via **Central de Runs** in the sidebar.
+
+### Metrics Summary
+
+The top bar displays real-time metrics:
+
+| Metric | Description |
+|--------|-------------|
+| **Total** | Total number of runs |
+| **Em Execucao** | Currently running |
+| **Concluidas** | Successfully completed |
+| **Falhas** | Failed runs |
+| **Checkpoint** | Awaiting approval |
+| **Bloqueadas** | Blocked runs |
+
+### Filters
+
+Filter runs by:
+
+- **Search**: Find by run_id or task description
+- **Status**: Running, Completed, Failed, Checkpoint, Blocked
+- **Profile**: Filter by project type (flutter, python, etc.)
+- **Checkpoint**: Show only runs with pending checkpoints
+- **Error**: Show only runs with errors
+
+### Quick Actions
+
+For each run:
+
+- **Retomar**: Resume an incomplete run
+- **Pasta**: Open run folder in file explorer
+- **Relatorio**: Open final report (JSON or Markdown)
+- **Diff**: Open git diff/patch file
+- **Diagnostico**: Run pre-flight checks
+
+### Run Detail Preview
+
+Select a run to see:
+
+- Full task description
+- Current stage and iteration
+- Duration
+- Plan objective
+- Execution summary
+- Review status
+- Commit hash
+- Errors (if any)
+- Checkpoint status
+- Identified risks
+
+### Export
+
+- **Export JSON**: Save full dashboard data to `workspace/logs/dashboard_<timestamp>.json`
+- **Export Markdown**: Save summary to `workspace/logs/dashboard_<timestamp>.md`
+- **Copy Summary**: Copy metrics and recent runs to clipboard
+
+### Auto-Refresh
+
+The dashboard auto-refreshes every 5 seconds by default. Toggle with the **Auto-refresh** checkbox.
+
+### Architecture
+
+```
+orchestrator/run_index.py     - Data aggregation from workspace
+gui/dashboard_panel.py        - Visual dashboard (PySide6)
+gui/dashboard_worker.py       - Background loading (QRunnable)
+gui/dashboard_models.py       - UI state models
+```
+
+Data is read from existing state files - no duplication of core logic.
+
 ## Diagnostics Panel
 
 The Diagnostics Panel provides a pre-flight check system to verify all components are operational before running tasks. Access it via **Diagnostico** in the sidebar.
@@ -358,6 +432,7 @@ ai-orchestrator/
 │   ├── validation.py          # Validation runner
 │   ├── git_ops.py             # Git operations
 │   ├── diagnostics.py         # System diagnostics
+│   ├── run_index.py           # Run aggregation for dashboard
 │   └── logger.py              # Logging utilities
 ├── gui/                       # Desktop GUI (PySide6)
 │   ├── __init__.py
@@ -371,6 +446,9 @@ ai-orchestrator/
 │   ├── diagnostics_panel.py   # Diagnostics panel UI
 │   ├── diagnostics_worker.py  # Diagnostics background workers
 │   ├── diagnostics_models.py  # Diagnostics UI state models
+│   ├── dashboard_panel.py     # Dashboard panel UI
+│   ├── dashboard_worker.py    # Dashboard background workers
+│   ├── dashboard_models.py    # Dashboard UI state models
 │   ├── worker.py              # Background workers
 │   ├── settings_store.py      # UI preferences persistence
 │   ├── ui_models.py           # UI data models
@@ -389,7 +467,9 @@ ai-orchestrator/
 │   ├── test_checkpoint.py
 │   ├── test_git_ops.py
 │   ├── test_gui_smoke.py      # GUI smoke tests
-│   └── test_diagnostics.py    # Diagnostics tests
+│   ├── test_diagnostics.py    # Diagnostics tests
+│   ├── test_run_index.py      # Run index tests
+│   └── test_dashboard.py      # Dashboard tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example

@@ -31,6 +31,7 @@ from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
 from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
 from .diagnostics_panel import DiagnosticsPanel
+from .dashboard_panel import DashboardPanel
 
 
 class Sidebar(QFrame):
@@ -63,6 +64,7 @@ class Sidebar(QFrame):
         # Navigation buttons
         nav_items = [
             ("new_task", "Nova Tarefa"),
+            ("dashboard", "Central de Runs"),
             ("runs", "Execucoes"),
             ("diagnostics", "Diagnostico"),
             ("logs", "Logs / Relatorios"),
@@ -261,6 +263,9 @@ class MainWindow(QMainWindow):
         self.diagnostics_panel = DiagnosticsPanel()
         self.stack.addWidget(self.diagnostics_panel)
 
+        self.dashboard_panel = DashboardPanel()
+        self.stack.addWidget(self.dashboard_panel)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -273,7 +278,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["new_task", "dashboard", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -298,6 +303,12 @@ class MainWindow(QMainWindow):
         # Diagnostics panel
         self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
         self.diagnostics_panel.open_logs.connect(self._open_logs_folder)
+
+        # Dashboard panel
+        self.dashboard_panel.run_selected.connect(self._on_dashboard_run_selected)
+        self.dashboard_panel.run_resume.connect(self._on_resume_run)
+        self.dashboard_panel.open_folder.connect(self._open_run_folder)
+        self.dashboard_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
 
         # Set initial page
         self._navigate("new_task")
@@ -325,6 +336,10 @@ class MainWindow(QMainWindow):
 
         # Set diagnostics panel config
         self.diagnostics_panel.set_config(self.config, self.paths, self._project_path)
+
+        # Set dashboard workspace
+        if self.paths:
+            self.dashboard_panel.set_workspace(self.paths.workspace_root)
 
     def _init_engine(self):
         """Initialize the orchestration engine."""
@@ -365,6 +380,7 @@ class MainWindow(QMainWindow):
             "settings": 3,
             "help": 4,
             "diagnostics": 5,
+            "dashboard": 6,
         }
 
         if key in page_map:
@@ -861,6 +877,11 @@ class MainWindow(QMainWindow):
             "Configuracoes",
             "Configuracoes salvas!\nAlgumas alteracoes podem requerer reinicio."
         )
+
+    def _on_dashboard_run_selected(self, run_id: str):
+        """Handle run selection from dashboard."""
+        self._navigate("runs")
+        self._on_run_selected(run_id)
 
     def _open_logs_folder(self):
         """Open logs folder in file explorer."""
