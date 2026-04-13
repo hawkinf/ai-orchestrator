@@ -31,6 +31,24 @@ from .replay_models import (
     ReplayComparison,
     ComparisonResult,
 )
+from .version import (
+    Version,
+    VersionInfo,
+    VersionManager,
+    ReleaseChannel,
+    get_version_manager,
+    get_version,
+    get_version_info,
+)
+from .updater import (
+    Updater,
+    UpdateConfig,
+    UpdateStatus,
+    UpdateResult,
+    ReleaseInfo,
+    get_updater,
+    check_for_updates,
+)
 
 __all__ = [
     "OrchestratorConfig",
@@ -66,4 +84,18 @@ __all__ = [
     "ReplayResult",
     "ReplayComparison",
     "ComparisonResult",
+    "Version",
+    "VersionInfo",
+    "VersionManager",
+    "ReleaseChannel",
+    "get_version_manager",
+    "get_version",
+    "get_version_info",
+    "Updater",
+    "UpdateConfig",
+    "UpdateStatus",
+    "UpdateResult",
+    "ReleaseInfo",
+    "get_updater",
+    "check_for_updates",
 ]

@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "major": 0,
+  "minor": 1,
+  "patch": 0,
+  "prerelease": null,
+  "build": null,
+  "channel": "dev",
+  "build_date": "2026-04-13T00:00:00",
+  "commit_hash": null,
+  "app_name": "AI Orchestrator",
+  "author": "Hawk Informatica"
+}
