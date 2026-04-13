@@ -3,7 +3,6 @@
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -11,6 +10,11 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT_PATH = Path(__file__).parent
+
+
+def get_version_info_path() -> Path:
+    """Return the version resource file path."""
+    return ROOT_PATH / "version_info.txt"
 
 
 def get_version() -> str:
@@ -53,7 +57,7 @@ VSVersionInfo(
             StringStruct('FileDescription', 'AI Orchestrator - Local Development Assistant'),
             StringStruct('FileVersion', '{version}'),
             StringStruct('InternalName', 'AIOrchestrator'),
-            StringStruct('LegalCopyright', '© {datetime.now().year} Hawk Informatica. All rights reserved.'),
+            StringStruct('LegalCopyright', '(c) {datetime.now().year} Hawk Informatica. All rights reserved.'),
             StringStruct('OriginalFilename', 'AIOrchestrator.exe'),
             StringStruct('ProductName', 'AI Orchestrator'),
             StringStruct('ProductVersion', '{version}'),
@@ -65,10 +69,35 @@ VSVersionInfo(
   ]
 )
 '''
-    with open(ROOT_PATH / "version_info.txt", "w", encoding="utf-8") as f:
+    with open(get_version_info_path(), "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
     print(f"Updated version_info.txt to version {version}")
+
+
+def validate_version_info_file(version_info_path: Path) -> None:
+    """Validate version resource file encoding and contents for PyInstaller."""
+    if not version_info_path.exists():
+        raise FileNotFoundError(f"Version info file not found: {version_info_path}")
+
+    raw = version_info_path.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"Version info file is not valid UTF-8: {version_info_path}") from exc
+
+    non_ascii = sorted({char for char in text if ord(char) > 127})
+    if non_ascii:
+        chars = ", ".join(repr(char) for char in non_ascii)
+        raise ValueError(
+            f"Version info file contains non-ASCII characters that are unsafe for PyInstaller: {chars}"
+        )
+
+    required_markers = ["VSVersionInfo(", "StringStruct('FileVersion'", "StringStruct('ProductVersion'"]
+    missing_markers = [marker for marker in required_markers if marker not in text]
+    if missing_markers:
+        markers = ", ".join(missing_markers)
+        raise ValueError(f"Version info file is missing required markers: {markers}")
 
 
 def format_command(cmd: list[str]) -> str:
@@ -111,6 +140,10 @@ def validate_spec_file(spec_file: Path) -> str:
         paths = ", ".join(missing_paths)
         raise FileNotFoundError(f"Spec file references missing required paths: {paths}")
 
+    version_info_path = get_version_info_path()
+    if version_info_path.exists():
+        validate_version_info_file(version_info_path)
+
     return detect_spec_build_mode(spec_file)
 
 
@@ -150,7 +183,7 @@ def build_pyinstaller_command(target: Path, debug: bool = False, onefile: bool =
         "--name=AIOrchestrator",
         "--windowed",
         f"--add-data={ROOT_PATH / 'version.json'};.",
-        f"--version-file={ROOT_PATH / 'version_info.txt'}",
+        f"--version-file={get_version_info_path()}",
         str(target),
     ])
     return cmd, build_mode

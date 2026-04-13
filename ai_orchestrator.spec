@@ -1,7 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec file for AI Orchestrator."""
 
-import sys
 from pathlib import Path
 
 block_cipher = None
@@ -31,7 +30,6 @@ hiddenimports = [
     "pydantic",
     "pydantic_settings",
     "openai",
-    "anthropic",
     "httpx",
     "httpcore",
     "anyio",
@@ -41,6 +39,26 @@ hiddenimports = [
     "idna",
     "urllib3",
 ]
+
+
+def resolve_version_resource() -> str | None:
+    """Return a safe version resource path or disable it if invalid."""
+    version_file = ROOT_PATH / "version_info.txt"
+    if not version_file.exists():
+        print(f"[ai_orchestrator.spec] version resource not found: {version_file}")
+        return None
+
+    try:
+        text = version_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        print(f"[ai_orchestrator.spec] version resource is not valid UTF-8: {version_file}")
+        return None
+
+    if any(ord(char) > 127 for char in text):
+        print(f"[ai_orchestrator.spec] version resource contains non-ASCII characters, disabling version metadata: {version_file}")
+        return None
+
+    return str(version_file)
 
 a = Analysis(
     [str(ROOT_PATH / "main.py")],
@@ -88,5 +106,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=str(ROOT_PATH / "assets" / "icon.ico") if (ROOT_PATH / "assets" / "icon.ico").exists() else None,
-    version=str(ROOT_PATH / "version_info.txt") if (ROOT_PATH / "version_info.txt").exists() else None,
+    version=resolve_version_resource(),
 )
