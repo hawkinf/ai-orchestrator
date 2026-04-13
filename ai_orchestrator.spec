@@ -10,11 +10,17 @@ block_cipher = None
 ROOT_PATH = Path(SPECPATH)
 
 # Collect data files
+# NOTE: Only include files/folders that actually exist
+# - version.json: App version metadata (required)
+# - config.yaml: Default configuration (required)
+# - prompts/: LLM prompt templates (required for planner/reviewer)
 datas = [
-    # Version file
+    # Version file - required for app version display
     (str(ROOT_PATH / "version.json"), "."),
-    # Config templates
-    (str(ROOT_PATH / "config"), "config"),
+    # Configuration file - required for app settings
+    (str(ROOT_PATH / "config.yaml"), "."),
+    # Prompt templates - required for LLM interactions
+    (str(ROOT_PATH / "prompts"), "prompts"),
 ]
 
 # Hidden imports for dynamic modules
