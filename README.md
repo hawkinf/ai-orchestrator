@@ -53,6 +53,27 @@ cp config.yaml my_project_config.yaml
 # Edit .env and config.yaml with your settings
 ```
 
+## Desktop Build
+
+Use the PyInstaller spec as the default build target:
+
+```bash
+python build.py build
+```
+
+This resolves to:
+
+```bash
+python -m PyInstaller --noconfirm --clean ai_orchestrator.spec
+```
+
+Important build rules:
+
+- When the target is `ai_orchestrator.spec`, do not pass `--onefile` or `--onedir` on the CLI. PyInstaller rejects those flags when a `.spec` file is provided.
+- The packaging mode is defined inside `ai_orchestrator.spec`. The current spec is configured as `onefile` because it contains `EXE(...)` without `COLLECT(...)`.
+- If you intentionally build from a Python entrypoint instead of the spec, use `python build.py build --target main.py` and then CLI packaging flags are allowed through the build script.
+- Run the build in a normal terminal session. PyInstaller warns that running as Administrator is unnecessary and not recommended.
+
 ## Quick Start
 
 ### Option A: GUI Mode (Recommended)

@@ -17,7 +17,7 @@ def get_version() -> str:
     """Get current version from version.json."""
     version_file = ROOT_PATH / "version.json"
     if version_file.exists():
-        with open(version_file) as f:
+        with open(version_file, encoding="utf-8") as f:
             data = json.load(f)
         return data.get("version", "0.1.0")
     return "0.1.0"
@@ -65,10 +65,95 @@ VSVersionInfo(
   ]
 )
 '''
-    with open(ROOT_PATH / "version_info.txt", "w") as f:
+    with open(ROOT_PATH / "version_info.txt", "w", encoding="utf-8") as f:
         f.write(content)
 
     print(f"Updated version_info.txt to version {version}")
+
+
+def format_command(cmd: list[str]) -> str:
+    """Format a subprocess command for readable logging."""
+    return subprocess.list2cmdline([str(part) for part in cmd])
+
+
+def detect_spec_build_mode(spec_file: Path) -> str:
+    """Infer PyInstaller packaging mode from a spec file."""
+    spec_text = spec_file.read_text(encoding="utf-8")
+    has_exe = "EXE(" in spec_text
+    has_collect = "COLLECT(" in spec_text
+
+    if has_exe and not has_collect:
+        return "onefile"
+    if has_exe and has_collect:
+        return "onedir"
+    return "unknown"
+
+
+def validate_spec_file(spec_file: Path) -> str:
+    """Validate the expected structure and required assets of the spec file."""
+    if not spec_file.exists():
+        raise FileNotFoundError(f"Spec file not found: {spec_file}")
+
+    spec_text = spec_file.read_text(encoding="utf-8")
+    required_markers = ["Analysis(", "EXE("]
+    missing_markers = [marker for marker in required_markers if marker not in spec_text]
+    if missing_markers:
+        markers = ", ".join(missing_markers)
+        raise ValueError(f"Spec file is missing required sections: {markers}")
+
+    required_paths = [
+        ROOT_PATH / "version.json",
+        ROOT_PATH / "config.yaml",
+        ROOT_PATH / "prompts",
+    ]
+    missing_paths = [str(path) for path in required_paths if not path.exists()]
+    if missing_paths:
+        paths = ", ".join(missing_paths)
+        raise FileNotFoundError(f"Spec file references missing required paths: {paths}")
+
+    return detect_spec_build_mode(spec_file)
+
+
+def resolve_build_target(target: str | None = None) -> Path:
+    """Resolve the PyInstaller build target."""
+    if target:
+        return (ROOT_PATH / target).resolve() if not Path(target).is_absolute() else Path(target)
+
+    spec_file = ROOT_PATH / "ai_orchestrator.spec"
+    if spec_file.exists():
+        return spec_file
+
+    return ROOT_PATH / "main.py"
+
+
+def build_pyinstaller_command(target: Path, debug: bool = False, onefile: bool = True) -> tuple[list[str], str]:
+    """Build the PyInstaller command while respecting spec-vs-script rules."""
+    cmd = [
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--clean",
+    ]
+
+    if debug:
+        cmd.append("--debug=all")
+
+    if target.suffix.lower() == ".spec":
+        build_mode = validate_spec_file(target)
+        cmd.append(str(target))
+        return cmd, build_mode
+
+    build_mode = "onefile" if onefile else "onedir"
+    cmd.append(f"--{build_mode}")
+    cmd.extend([
+        "--name=AIOrchestrator",
+        "--windowed",
+        f"--add-data={ROOT_PATH / 'version.json'};.",
+        f"--version-file={ROOT_PATH / 'version_info.txt'}",
+        str(target),
+    ])
+    return cmd, build_mode
 
 
 def clean():
@@ -90,48 +175,33 @@ def clean():
     print("Clean complete!")
 
 
-def build_exe(debug: bool = False, onefile: bool = True):
+def build_exe(debug: bool = False, onefile: bool = True, target: str | None = None):
     """Build the executable using PyInstaller."""
-    print(f"Building AI Orchestrator v{get_version()}...")
+    version = get_version()
+    print(f"Building AI Orchestrator v{version}...")
 
     # Update version info
     update_version_info()
 
-    # Build command
-    cmd = [
-        sys.executable, "-m", "PyInstaller",
-        "--noconfirm",
-        "--clean",
-    ]
+    resolved_target = resolve_build_target(target)
+    cmd, build_mode = build_pyinstaller_command(resolved_target, debug=debug, onefile=onefile)
 
-    if debug:
-        cmd.append("--debug=all")
-
-    if onefile:
-        cmd.append("--onefile")
-    else:
-        cmd.append("--onedir")
-
-    # Use spec file
-    spec_file = ROOT_PATH / "ai_orchestrator.spec"
-    if spec_file.exists():
-        cmd.append(str(spec_file))
-    else:
-        # Fallback to direct options
-        cmd.extend([
-            "--name=AIOrchestrator",
-            "--windowed",
-            f"--add-data={ROOT_PATH / 'version.json'};.",
-            f"--version-file={ROOT_PATH / 'version_info.txt'}",
-            str(ROOT_PATH / "main.py"),
-        ])
-
-    print(f"Running: {' '.join(cmd)}")
+    print(f"Build target: {resolved_target}")
+    print(f"App version: {version}")
+    print(f"Detected build mode: {build_mode}")
+    if resolved_target.suffix.lower() == ".spec":
+        print(f"Spec file: {resolved_target}")
+        if not onefile:
+            print("Note: --onedir was requested, but packaging mode is controlled by the spec file and CLI mode flags were skipped.")
+    print(f"Running: {format_command(cmd)}")
     result = subprocess.run(cmd, cwd=ROOT_PATH)
 
     if result.returncode == 0:
         print("\nBuild successful!")
-        print(f"Executable: {ROOT_PATH / 'dist' / 'AIOrchestrator.exe'}")
+        if build_mode == "onedir":
+            print(f"Bundle directory: {ROOT_PATH / 'dist' / 'AIOrchestrator'}")
+        else:
+            print(f"Executable: {ROOT_PATH / 'dist' / 'AIOrchestrator.exe'}")
     else:
         print("\nBuild failed!")
         sys.exit(1)
@@ -220,6 +290,7 @@ def main():
     build_parser = subparsers.add_parser("build", help="Build executable")
     build_parser.add_argument("--debug", action="store_true", help="Debug build")
     build_parser.add_argument("--onedir", action="store_true", help="Build as directory instead of single file")
+    build_parser.add_argument("--target", help="PyInstaller target (.spec or .py). Defaults to ai_orchestrator.spec when present")
 
     # Test command
     subparsers.add_parser("test", help="Run tests")
@@ -244,7 +315,7 @@ def main():
     if args.command == "clean":
         clean()
     elif args.command == "build":
-        build_exe(debug=args.debug, onefile=not args.onedir)
+        build_exe(debug=args.debug, onefile=not args.onedir, target=args.target)
     elif args.command == "test":
         if not run_tests():
             sys.exit(1)
