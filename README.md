@@ -68,6 +68,7 @@ The GUI provides:
 
 - **Nova Tarefa**: Create and submit tasks with full configuration
 - **Central de Runs**: Dashboard with metrics, filters, and quick actions (see below)
+- **Checkpoints**: Centralized checkpoint management with approval/rejection (see Checkpoint Center below)
 - **Execucoes**: View run history, details, and artifacts
 - **Diagnostico**: Pre-flight system checks (see Diagnostics Panel below)
 - **Logs / Relatorios**: Browse logs and reports
@@ -350,6 +351,122 @@ gui/dashboard_models.py       - UI state models
 
 Data is read from existing state files - no duplication of core logic.
 
+## Checkpoint Center
+
+The Checkpoint Center provides centralized management of all checkpoints - critical decision points that require human approval. Access via **Checkpoints** in the sidebar.
+
+### What are Checkpoints?
+
+Checkpoints are safety gates that pause execution when the system detects potentially dangerous or irreversible operations:
+
+| Checkpoint Type | Trigger | Severity |
+|-----------------|---------|----------|
+| **Git Destructive** | force push, reset --hard, branch -D | Critical |
+| **Infrastructure** | terraform, cloudformation, deploy | Critical |
+| **Architecture Rewrite** | rewrite, refactor entire, restructure | Critical |
+| **Destructive Operation** | delete, rm -rf, drop table, truncate | High Risk |
+| **Migration** | database migrations | High Risk |
+| **Command Not Allowed** | Commands not in allowlist | Warning |
+| **Repeated Failures** | Multiple execution failures | Warning |
+| **Manual Request** | User-requested checkpoint | Info |
+
+### Checkpoint List
+
+The main view shows all checkpoints with:
+
+- **Status**: Pending (yellow), Approved (green), Rejected (red)
+- **Severity**: Critical, High Risk, Warning, Info
+- **Run ID**: Associated run
+- **Type**: Checkpoint reason
+- **Description**: What triggered the checkpoint
+- **Pipeline Stage**: Where in the pipeline
+- **Created**: When the checkpoint was created
+
+### Metrics Bar
+
+Real-time metrics showing:
+
+| Metric | Description |
+|--------|-------------|
+| **Total** | Total checkpoints across all runs |
+| **Pendentes** | Awaiting decision |
+| **Aprovados** | Approved checkpoints |
+| **Rejeitados** | Rejected checkpoints |
+| **Criticos** | Critical severity pending |
+| **Alto Risco** | High risk severity pending |
+
+### Filters
+
+Filter checkpoints by:
+
+- **Search**: Find by run_id or description
+- **Status**: Pending, Approved, Rejected
+- **Severity**: Critical, High Risk, Warning, Info
+- **Type**: Filter by checkpoint reason
+
+### Checkpoint Detail
+
+Select a checkpoint to see full context:
+
+- Complete description
+- Task being executed
+- Pipeline stage and iteration
+- Risk assessment
+- System recommendation
+- Files affected
+- Diff preview (if available)
+- Plan objective and risks
+
+### Actions
+
+For pending checkpoints:
+
+- **Aprovar**: Approve and resume execution
+- **Rejeitar**: Reject and cancel the run
+- **Observacao**: Add notes to your decision
+
+When you approve a checkpoint:
+
+1. The decision is recorded with timestamp
+2. The run automatically resumes
+3. The dashboard updates
+
+When you reject a checkpoint:
+
+1. The run is marked as cancelled
+2. The decision is recorded for history
+
+### History
+
+View all past decisions:
+
+- Who decided (if applicable)
+- When
+- Resolution note
+- Run outcome after decision
+
+### Export
+
+- **Export JSON**: Full checkpoint data to `workspace/logs/checkpoints_<timestamp>.json`
+- **Export Markdown**: Summary to `workspace/logs/checkpoints_<timestamp>.md`
+- **Copy Summary**: Copy metrics and pending list to clipboard
+
+### Auto-Refresh
+
+The panel auto-refreshes every 5 seconds. Toggle with the **Auto-refresh** checkbox.
+
+### Architecture
+
+```
+orchestrator/checkpoint_index.py  - Checkpoint aggregation from workspace
+orchestrator/checkpoint.py        - Core checkpoint logic
+gui/checkpoints_panel.py          - Visual panel (PySide6)
+gui/checkpoints_worker.py         - Background workers (QRunnable)
+gui/checkpoints_models.py         - UI state models
+```
+
+Checkpoint Center reads from existing state files and uses the core CheckpointManager for actions - no duplication of business logic.
+
 ## Diagnostics Panel
 
 The Diagnostics Panel provides a pre-flight check system to verify all components are operational before running tasks. Access it via **Diagnostico** in the sidebar.
@@ -433,6 +550,7 @@ ai-orchestrator/
 │   ├── git_ops.py             # Git operations
 │   ├── diagnostics.py         # System diagnostics
 │   ├── run_index.py           # Run aggregation for dashboard
+│   ├── checkpoint_index.py    # Checkpoint aggregation for center
 │   └── logger.py              # Logging utilities
 ├── gui/                       # Desktop GUI (PySide6)
 │   ├── __init__.py
@@ -449,6 +567,9 @@ ai-orchestrator/
 │   ├── dashboard_panel.py     # Dashboard panel UI
 │   ├── dashboard_worker.py    # Dashboard background workers
 │   ├── dashboard_models.py    # Dashboard UI state models
+│   ├── checkpoints_panel.py   # Checkpoint center panel UI
+│   ├── checkpoints_worker.py  # Checkpoint center background workers
+│   ├── checkpoints_models.py  # Checkpoint center UI state models
 │   ├── worker.py              # Background workers
 │   ├── settings_store.py      # UI preferences persistence
 │   ├── ui_models.py           # UI data models
@@ -469,7 +590,9 @@ ai-orchestrator/
 │   ├── test_gui_smoke.py      # GUI smoke tests
 │   ├── test_diagnostics.py    # Diagnostics tests
 │   ├── test_run_index.py      # Run index tests
-│   └── test_dashboard.py      # Dashboard tests
+│   ├── test_dashboard.py      # Dashboard tests
+│   ├── test_checkpoint_index.py  # Checkpoint index tests
+│   └── test_checkpoints_panel.py # Checkpoint center tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example

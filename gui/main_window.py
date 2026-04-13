@@ -32,6 +32,7 @@ from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
 from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
+from .checkpoints_panel import CheckpointsPanel
 
 
 class Sidebar(QFrame):
@@ -65,6 +66,7 @@ class Sidebar(QFrame):
         nav_items = [
             ("new_task", "Nova Tarefa"),
             ("dashboard", "Central de Runs"),
+            ("checkpoints", "Checkpoints"),
             ("runs", "Execucoes"),
             ("diagnostics", "Diagnostico"),
             ("logs", "Logs / Relatorios"),
@@ -266,6 +268,9 @@ class MainWindow(QMainWindow):
         self.dashboard_panel = DashboardPanel()
         self.stack.addWidget(self.dashboard_panel)
 
+        self.checkpoints_panel = CheckpointsPanel()
+        self.stack.addWidget(self.checkpoints_panel)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -278,7 +283,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "dashboard", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["new_task", "dashboard", "checkpoints", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -310,6 +315,11 @@ class MainWindow(QMainWindow):
         self.dashboard_panel.open_folder.connect(self._open_run_folder)
         self.dashboard_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
 
+        # Checkpoints panel
+        self.checkpoints_panel.checkpoint_approved.connect(self._on_checkpoint_approved_from_center)
+        self.checkpoints_panel.checkpoint_rejected.connect(self._on_checkpoint_rejected_from_center)
+        self.checkpoints_panel.open_run.connect(self._on_checkpoint_open_run)
+
         # Set initial page
         self._navigate("new_task")
 
@@ -340,6 +350,12 @@ class MainWindow(QMainWindow):
         # Set dashboard workspace
         if self.paths:
             self.dashboard_panel.set_workspace(self.paths.workspace_root)
+
+        # Set checkpoints panel config
+        if self.paths:
+            self.checkpoints_panel.set_workspace(self.paths.workspace_root)
+        if self.config:
+            self.checkpoints_panel.set_config(self.config)
 
     def _init_engine(self):
         """Initialize the orchestration engine."""
@@ -381,6 +397,7 @@ class MainWindow(QMainWindow):
             "help": 4,
             "diagnostics": 5,
             "dashboard": 6,
+            "checkpoints": 7,
         }
 
         if key in page_map:
@@ -880,6 +897,25 @@ class MainWindow(QMainWindow):
 
     def _on_dashboard_run_selected(self, run_id: str):
         """Handle run selection from dashboard."""
+        self._navigate("runs")
+        self._on_run_selected(run_id)
+
+    def _on_checkpoint_approved_from_center(self, run_id: str):
+        """Handle checkpoint approved from checkpoint center."""
+        self.logger.info(f"Checkpoint approved from center: {run_id}")
+        self._refresh_runs()
+        self._check_checkpoints()
+        # Auto-resume the run
+        self._on_resume_run(run_id)
+
+    def _on_checkpoint_rejected_from_center(self, run_id: str):
+        """Handle checkpoint rejected from checkpoint center."""
+        self.logger.info(f"Checkpoint rejected from center: {run_id}")
+        self._refresh_runs()
+        self._check_checkpoints()
+
+    def _on_checkpoint_open_run(self, run_id: str):
+        """Handle open run from checkpoint center."""
         self._navigate("runs")
         self._on_run_selected(run_id)
 
