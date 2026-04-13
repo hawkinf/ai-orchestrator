@@ -68,6 +68,7 @@ The GUI provides:
 
 - **Nova Tarefa**: Create and submit tasks with full configuration
 - **Execucoes**: View run history, details, and artifacts
+- **Diagnostico**: Pre-flight system checks (see Diagnostics Panel below)
 - **Logs / Relatorios**: Browse logs and reports
 - **Configuracoes**: Edit settings visually, test API connection
 - Checkpoint approval dialogs
@@ -275,6 +276,65 @@ The GUI provides real-time progress updates during pipeline execution:
 - View all generated files (JSON, logs, reports, patches)
 - Double-click to open with default application
 
+## Diagnostics Panel
+
+The Diagnostics Panel provides a pre-flight check system to verify all components are operational before running tasks. Access it via **Diagnostico** in the sidebar.
+
+### Available Checks
+
+| Check | Description | Critical |
+|-------|-------------|----------|
+| **OpenAI API** | Verifies API key and connectivity | Yes |
+| **Claude Executor** | Checks Claude Code CLI availability | Yes |
+| **Configuration** | Validates config.yaml structure | No |
+| **Workspace** | Checks workspace directories and permissions | Yes |
+| **Project Directory** | Validates project structure for profile | No |
+| **Git** | Checks Git availability and repository status | Yes |
+| **Validation Commands** | Verifies configured commands exist | No |
+| **Environment & .env** | Checks environment variables | No |
+| **Core Modules** | Verifies orchestrator modules can be imported | Yes |
+
+### Status Indicators
+
+| Status | Meaning |
+|--------|---------|
+| **NOT_TESTED** (gray) | Check not yet executed |
+| **RUNNING** (blue) | Check currently executing |
+| **OK** (green) | Check passed |
+| **WARNING** (yellow) | Check passed with warnings |
+| **FAILED** (red) | Check failed |
+| **CRITICAL** (dark red) | Critical failure - blocks execution |
+
+### Features
+
+- **Run All Checks**: Execute complete diagnostic suite
+- **Run Single Check**: Re-run individual checks
+- **Expandable Details**: Click any check to see detailed information
+- **Recommendations**: Failed checks provide actionable suggestions
+- **Export Reports**: Save diagnostics as JSON or Markdown
+- **Copy to Clipboard**: Copy full report for sharing
+- **Open Logs/Config**: Quick access to workspace folders
+
+### Usage
+
+1. Navigate to **Diagnostico** in the sidebar
+2. Click **Executar Diagnostico** to run all checks
+3. Review results - expand any check for details
+4. Fix issues using the provided recommendations
+5. Re-run individual checks as needed
+6. Export report if needed for documentation
+
+### Architecture
+
+```
+orchestrator/diagnostics.py   - Core diagnostic logic (all checks)
+gui/diagnostics_panel.py      - Visual panel (PySide6 widgets)
+gui/diagnostics_worker.py     - Background execution (QRunnable)
+gui/diagnostics_models.py     - UI state models
+```
+
+All checks run in background threads to avoid blocking the UI.
+
 ## Project Structure
 
 ```
@@ -297,6 +357,7 @@ ai-orchestrator/
 │   ├── checkpoint.py          # Checkpoint management
 │   ├── validation.py          # Validation runner
 │   ├── git_ops.py             # Git operations
+│   ├── diagnostics.py         # System diagnostics
 │   └── logger.py              # Logging utilities
 ├── gui/                       # Desktop GUI (PySide6)
 │   ├── __init__.py
@@ -307,6 +368,9 @@ ai-orchestrator/
 │   ├── config_panel.py        # Settings panel
 │   ├── log_viewer.py          # Log viewer panel
 │   ├── checkpoint_dialog.py   # Checkpoint approval dialog
+│   ├── diagnostics_panel.py   # Diagnostics panel UI
+│   ├── diagnostics_worker.py  # Diagnostics background workers
+│   ├── diagnostics_models.py  # Diagnostics UI state models
 │   ├── worker.py              # Background workers
 │   ├── settings_store.py      # UI preferences persistence
 │   ├── ui_models.py           # UI data models
@@ -324,7 +388,8 @@ ai-orchestrator/
 │   ├── test_report_parser.py
 │   ├── test_checkpoint.py
 │   ├── test_git_ops.py
-│   └── test_gui_smoke.py      # GUI smoke tests
+│   ├── test_gui_smoke.py      # GUI smoke tests
+│   └── test_diagnostics.py    # Diagnostics tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example
@@ -371,7 +436,7 @@ executor:
 ## Running Tests
 
 ```bash
-# Run all tests (176 tests)
+# Run all tests (221 tests)
 python -m pytest tests/
 
 # Run core tests

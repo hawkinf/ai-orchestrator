@@ -30,6 +30,7 @@ from .log_viewer import LogViewer
 from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
 from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
+from .diagnostics_panel import DiagnosticsPanel
 
 
 class Sidebar(QFrame):
@@ -63,6 +64,7 @@ class Sidebar(QFrame):
         nav_items = [
             ("new_task", "Nova Tarefa"),
             ("runs", "Execucoes"),
+            ("diagnostics", "Diagnostico"),
             ("logs", "Logs / Relatorios"),
             ("settings", "Configuracoes"),
             ("help", "Ajuda"),
@@ -256,6 +258,9 @@ class MainWindow(QMainWindow):
         self.help_panel = HelpPanel()
         self.stack.addWidget(self.help_panel)
 
+        self.diagnostics_panel = DiagnosticsPanel()
+        self.stack.addWidget(self.diagnostics_panel)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -268,7 +273,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "runs", "logs", "settings", "help"]:
+        for key in ["new_task", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -289,6 +294,10 @@ class MainWindow(QMainWindow):
 
         # Config panel
         self.config_panel.settings_saved.connect(self._on_settings_saved)
+
+        # Diagnostics panel
+        self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
+        self.diagnostics_panel.open_logs.connect(self._open_logs_folder)
 
         # Set initial page
         self._navigate("new_task")
@@ -313,6 +322,9 @@ class MainWindow(QMainWindow):
 
         # Check for pending checkpoints
         self._check_checkpoints()
+
+        # Set diagnostics panel config
+        self.diagnostics_panel.set_config(self.config, self.paths, self._project_path)
 
     def _init_engine(self):
         """Initialize the orchestration engine."""
@@ -352,6 +364,7 @@ class MainWindow(QMainWindow):
             "logs": 2,
             "settings": 3,
             "help": 4,
+            "diagnostics": 5,
         }
 
         if key in page_map:
@@ -848,6 +861,21 @@ class MainWindow(QMainWindow):
             "Configuracoes",
             "Configuracoes salvas!\nAlgumas alteracoes podem requerer reinicio."
         )
+
+    def _open_logs_folder(self):
+        """Open logs folder in file explorer."""
+        if not self.paths:
+            return
+
+        logs_path = self.paths.workspace_root / "logs"
+        logs_path.mkdir(parents=True, exist_ok=True)
+
+        if sys.platform == "win32":
+            os.startfile(logs_path)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(logs_path)])
+        else:
+            subprocess.run(["xdg-open", str(logs_path)])
 
     def closeEvent(self, event: QCloseEvent):
         """Handle window close."""
