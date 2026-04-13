@@ -34,6 +34,7 @@ from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
 from .checkpoints_panel import CheckpointsPanel
 from .policy_panel import PolicyPanel
+from .replay_panel import ReplayPanel
 
 
 class Sidebar(QFrame):
@@ -69,6 +70,7 @@ class Sidebar(QFrame):
             ("dashboard", "Central de Runs"),
             ("checkpoints", "Checkpoints"),
             ("policies", "Politicas"),
+            ("replay", "Replay"),
             ("runs", "Execucoes"),
             ("diagnostics", "Diagnostico"),
             ("logs", "Logs / Relatorios"),
@@ -278,6 +280,11 @@ class MainWindow(QMainWindow):
         self._policy_placeholder = QWidget()
         self.stack.addWidget(self._policy_placeholder)
 
+        # Replay panel placeholder - initialized in _load_initial_data
+        self.replay_panel = None
+        self._replay_placeholder = QWidget()
+        self.stack.addWidget(self._replay_placeholder)
+
         content_layout.addWidget(self.stack)
 
         main_layout.addWidget(content_widget)
@@ -290,7 +297,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "dashboard", "checkpoints", "policies", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
@@ -368,6 +375,10 @@ class MainWindow(QMainWindow):
         if self.paths:
             self._init_policy_panel()
 
+        # Initialize replay panel
+        if self.paths:
+            self._init_replay_panel()
+
     def _init_engine(self):
         """Initialize the orchestration engine."""
         if not self.config or not self.paths:
@@ -418,6 +429,25 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.logger.error(f"Failed to initialize policy panel: {e}")
 
+    def _init_replay_panel(self):
+        """Initialize the replay panel."""
+        if not self.paths:
+            return
+
+        try:
+            self.replay_panel = ReplayPanel(self.paths.workspace_root)
+
+            # Replace placeholder
+            idx = self.stack.indexOf(self._replay_placeholder)
+            if idx >= 0:
+                self.stack.removeWidget(self._replay_placeholder)
+                self._replay_placeholder.deleteLater()
+                self.stack.insertWidget(idx, self.replay_panel)
+
+            self.logger.info("Replay panel initialized")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize replay panel: {e}")
+
     def _navigate(self, key: str):
         """Navigate to a page."""
         page_map = {
@@ -430,6 +460,7 @@ class MainWindow(QMainWindow):
             "dashboard": 6,
             "checkpoints": 7,
             "policies": 8,
+            "replay": 9,
         }
 
         if key in page_map:

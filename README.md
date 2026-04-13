@@ -587,6 +587,148 @@ workspace/policies/
 └── stats.json      - Aggregated statistics
 ```
 
+## Replay / Simulation
+
+The Replay feature allows you to re-execute runs without side effects for debugging, testing, and comparison. Access via **Replay** in the sidebar.
+
+### Overview
+
+Replay enables:
+
+- **Bug reproduction**: Re-run a failed execution to understand what went wrong
+- **Decision simulation**: Test different checkpoint decisions
+- **Comparison**: Compare original vs replay outputs
+- **Validation**: Verify that changes don't break existing behavior
+
+### Replay Modes
+
+| Mode | Description | Side Effects |
+|------|-------------|--------------|
+| **Dry Run** | Simulate all stages without real execution | None |
+| **Partial** | Execute only specific stages | Minimal |
+| **Full** | Complete replay in isolated sandbox | Contained |
+
+### Dry Run Mode
+
+The safest mode - simulates everything without executing real commands:
+
+- No subprocess calls
+- No file modifications
+- No API calls (uses cached responses)
+- Records what would have happened
+
+### Partial Mode
+
+Execute only specific pipeline stages:
+
+- **Planning**: Re-run planner with same input
+- **Execution**: Re-run executor (mocked by default)
+- **Review**: Re-run reviewer
+- **Validation**: Re-run validation commands
+
+### Full Mode (Sandbox)
+
+Complete pipeline execution in isolation:
+
+1. Copies project to temporary directory
+2. Executes full pipeline
+3. Compares results with original
+4. Cleans up sandbox after completion
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| **Mock Executor** | Simulate command execution | Yes |
+| **Mock Planner** | Use original plan instead of calling API | No |
+| **Mock Reviewer** | Use original review instead of calling API | No |
+| **Auto-approve Checkpoints** | Automatically approve all checkpoints | Yes |
+| **Use Sandbox** | Run in isolated directory | No (Full mode only) |
+| **Timeout** | Maximum execution time | 600s |
+
+### Comparison Report
+
+After replay, view detailed comparison:
+
+**Summary**:
+- Overall result (Identical/Different)
+- Time comparison (original vs replay)
+- Files comparison
+- Checkpoints comparison
+
+**Stage Comparisons**:
+- Output diff for each stage
+- Time difference per stage
+- Success/failure status
+
+**Artifacts**:
+- `report.json`: Full replay result
+- `metrics.json`: Timing and statistics
+- `diff.patch`: Unified diff of changes
+
+### History
+
+View all past replays with:
+
+- Replay ID
+- Original run
+- Mode used
+- Status and result
+- Duration
+
+### Use Cases
+
+**1. Debugging Failed Runs**
+```
+1. Select the failed run
+2. Choose Dry Run mode
+3. Execute replay
+4. Compare stage outputs to find the failure point
+```
+
+**2. Testing Checkpoint Decisions**
+```
+1. Select a run with checkpoints
+2. Configure custom checkpoint decisions
+3. Run replay to see different outcomes
+```
+
+**3. Validating Changes**
+```
+1. Make code changes
+2. Replay a successful run
+3. Compare outputs to ensure no regressions
+```
+
+### Architecture
+
+```
+orchestrator/replay_models.py   - Data models (Config, Result, Comparison)
+orchestrator/replay_engine.py   - Replay execution engine
+gui/replay_panel.py             - Visual panel (PySide6)
+```
+
+Replay data is stored in `workspace/replays/`:
+
+```
+workspace/replays/
+├── index.json                    - List of all replays
+└── replay-20260413-120000-abc123/
+    ├── report.json               - Full replay result
+    ├── metrics.json              - Timing data
+    └── diff.patch                - Stage output diffs
+```
+
+### Safety
+
+Replay is designed to be safe by default:
+
+- Original runs are never modified
+- Dry run mode has zero side effects
+- Sandbox mode isolates execution
+- All replays are tracked with unique IDs
+- Cancel button stops execution immediately
+
 ## Diagnostics Panel
 
 The Diagnostics Panel provides a pre-flight check system to verify all components are operational before running tasks. Access it via **Diagnostico** in the sidebar.
@@ -674,6 +816,8 @@ ai-orchestrator/
 │   ├── policy_engine.py       # Policy evaluation engine
 │   ├── policy_models.py       # Policy data models
 │   ├── policy_store.py        # Policy persistence
+│   ├── replay_engine.py       # Replay execution engine
+│   ├── replay_models.py       # Replay data models
 │   └── logger.py              # Logging utilities
 ├── gui/                       # Desktop GUI (PySide6)
 │   ├── __init__.py
@@ -694,6 +838,7 @@ ai-orchestrator/
 │   ├── checkpoints_worker.py  # Checkpoint center background workers
 │   ├── checkpoints_models.py  # Checkpoint center UI state models
 │   ├── policy_panel.py        # Policy management panel UI
+│   ├── replay_panel.py        # Replay panel UI
 │   ├── worker.py              # Background workers
 │   ├── settings_store.py      # UI preferences persistence
 │   ├── ui_models.py           # UI data models
@@ -717,7 +862,8 @@ ai-orchestrator/
 │   ├── test_dashboard.py      # Dashboard tests
 │   ├── test_checkpoint_index.py  # Checkpoint index tests
 │   ├── test_checkpoints_panel.py # Checkpoint center tests
-│   └── test_policy_engine.py     # Policy engine tests
+│   ├── test_policy_engine.py     # Policy engine tests
+│   └── test_replay_engine.py     # Replay engine tests
 ├── config.yaml
 ├── requirements.txt
 ├── .env.example

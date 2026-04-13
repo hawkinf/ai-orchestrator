@@ -21,6 +21,16 @@ from .policy_models import (
     CheckpointContext,
 )
 from .policy_store import PolicyStore
+from .replay_engine import ReplayEngine, get_replay_engine
+from .replay_models import (
+    ReplayMode,
+    ReplayStage,
+    ReplayStatus,
+    ReplayConfig,
+    ReplayResult,
+    ReplayComparison,
+    ComparisonResult,
+)
 
 __all__ = [
     "OrchestratorConfig",
@@ -47,4 +57,13 @@ __all__ = [
     "PolicyCondition",
     "CheckpointContext",
     "PolicyStore",
+    "ReplayEngine",
+    "get_replay_engine",
+    "ReplayMode",
+    "ReplayStage",
+    "ReplayStatus",
+    "ReplayConfig",
+    "ReplayResult",
+    "ReplayComparison",
+    "ComparisonResult",
 ]
