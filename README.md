@@ -67,11 +67,13 @@ python -m gui.app
 The GUI provides:
 
 - **Nova Tarefa**: Create and submit tasks with full configuration
-- **Execucoes**: View run history and details
+- **Execucoes**: View run history, details, and artifacts
 - **Logs / Relatorios**: Browse logs and reports
-- **Configuracoes**: Edit settings visually
+- **Configuracoes**: Edit settings visually, test API connection
 - Checkpoint approval dialogs
-- Real-time progress updates
+- Real-time progress updates during pipeline execution
+- Resume interrupted runs
+- Open run artifacts directly from the UI
 
 ### Option B: CLI Integrated Mode
 
@@ -250,6 +252,29 @@ python -m orchestrator.main status --run-id <run_id>
 python -m orchestrator.main resume --run-id <run_id>
 ```
 
+### GUI Pipeline Execution
+
+The GUI provides real-time progress updates during pipeline execution:
+
+1. **Submit Task**: Fill in the task description and click "Executar"
+2. **Real-time Updates**: Watch progress in the status bar as each phase completes:
+   - Initializing → Planning → Executing → Reviewing → Validating → Committing → Finalizing
+3. **Checkpoint Handling**: If a checkpoint is triggered, a dialog appears for approval
+4. **View Results**: Navigate to "Execucoes" to see run details, logs, and artifacts
+5. **Resume Runs**: Click ">>" on any incomplete run to resume execution
+
+**Status Bar Shows:**
+
+- Current run ID
+- Execution phase
+- Current iteration (e.g., "2/3")
+- Last update timestamp
+
+**Artifacts Tab:**
+
+- View all generated files (JSON, logs, reports, patches)
+- Double-click to open with default application
+
 ## Project Structure
 
 ```
@@ -346,14 +371,14 @@ executor:
 ## Running Tests
 
 ```bash
-# Run all tests (66 tests)
+# Run all tests (176 tests)
 python -m pytest tests/
 
 # Run core tests
 python -m pytest tests/test_state_store.py tests/test_checkpoint.py -v
 
-# Run GUI smoke tests
-python -m pytest tests/test_gui_smoke.py -v
+# Run GUI tests
+python -m pytest tests/test_gui_smoke.py tests/test_run_executor.py -v
 
 # Run with coverage
 python -m pytest tests/ --cov=orchestrator --cov=gui

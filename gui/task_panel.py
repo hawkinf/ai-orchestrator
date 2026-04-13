@@ -369,3 +369,41 @@ class TaskPanel(QWidget):
             require_approval_destructive=self.require_approval_cb.isChecked(),
             max_iterations=self.max_iter_spin.value(),
         )
+
+    def set_submitting(self, is_submitting: bool):
+        """Enable or disable the form while a task is submitting."""
+        self.submit_btn.setEnabled(not is_submitting)
+        self.clear_btn.setEnabled(not is_submitting)
+        self.task_edit.setEnabled(not is_submitting)
+        self.profile_combo.setEnabled(not is_submitting)
+        self.mode_combo.setEnabled(not is_submitting)
+        self.path_edit.setEnabled(not is_submitting)
+        self.auto_validate_cb.setEnabled(not is_submitting)
+        self.auto_commit_cb.setEnabled(not is_submitting)
+        self.auto_push_cb.setEnabled(not is_submitting)
+        self.require_approval_cb.setEnabled(not is_submitting)
+        self.max_iter_spin.setEnabled(not is_submitting)
+
+        if is_submitting:
+            self.submit_btn.setText("Executando...")
+            self.submit_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #94a3b8;
+                    font-size: 14px;
+                    font-weight: 600;
+                    padding: 12px 24px;
+                }
+            """)
+        else:
+            self.submit_btn.setText("Executar")
+            self.submit_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #22c55e;
+                    font-size: 14px;
+                    font-weight: 600;
+                    padding: 12px 24px;
+                }
+                QPushButton:hover {
+                    background-color: #16a34a;
+                }
+            """)

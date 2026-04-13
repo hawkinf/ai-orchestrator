@@ -1,13 +1,18 @@
 """Run history and details panel."""
 
+import os
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QFrame,
     QSplitter, QTabWidget, QTextEdit, QLineEdit, QComboBox,
-    QScrollArea, QGroupBox, QProgressBar, QMessageBox,
+    QScrollArea, QGroupBox, QProgressBar, QMessageBox, QListWidget,
+    QListWidgetItem,
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
@@ -194,10 +199,12 @@ class RunDetailPanel(QWidget):
     checkpoint_reject = Signal(str, str)  # run_id, reason
     open_folder = Signal(str)  # run_id
     run_resume = Signal(str)  # run_id
+    open_artifact = Signal(str)  # file_path
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, workspace_path: Optional[Path] = None):
         super().__init__(parent)
         self._run_id: Optional[str] = None
+        self._workspace_path = workspace_path
         self._setup_ui()
 
     def _setup_ui(self):
@@ -259,6 +266,10 @@ class RunDetailPanel(QWidget):
         self.git_text = QTextEdit()
         self.git_text.setReadOnly(True)
         self.tabs.addTab(self.git_text, "Git")
+
+        # Artifacts tab
+        artifacts_widget = self._create_artifacts_tab()
+        self.tabs.addTab(artifacts_widget, "Artefatos")
 
         layout.addWidget(self.tabs)
 
@@ -357,6 +368,113 @@ class RunDetailPanel(QWidget):
         layout.addWidget(scroll)
 
         return widget
+
+    def _create_artifacts_tab(self) -> QWidget:
+        """Create artifacts tab content."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(12)
+
+        # Header
+        header_layout = QHBoxLayout()
+        header_label = QLabel("Arquivos gerados durante a execucao")
+        header_label.setStyleSheet("color: #64748b;")
+        header_layout.addWidget(header_label)
+        header_layout.addStretch()
+
+        refresh_btn = QPushButton("Atualizar")
+        refresh_btn.setObjectName("secondary")
+        refresh_btn.setFixedWidth(80)
+        refresh_btn.clicked.connect(self._refresh_artifacts)
+        header_layout.addWidget(refresh_btn)
+
+        layout.addLayout(header_layout)
+
+        # Artifacts list
+        self.artifacts_list = QListWidget()
+        self.artifacts_list.setAlternatingRowColors(True)
+        self.artifacts_list.itemDoubleClicked.connect(self._open_artifact_item)
+        layout.addWidget(self.artifacts_list)
+
+        # Open selected button
+        open_layout = QHBoxLayout()
+        open_layout.addStretch()
+
+        open_btn = QPushButton("Abrir Selecionado")
+        open_btn.clicked.connect(self._open_selected_artifact)
+        open_layout.addWidget(open_btn)
+
+        layout.addLayout(open_layout)
+
+        return widget
+
+    def _refresh_artifacts(self):
+        """Refresh the artifacts list."""
+        self.artifacts_list.clear()
+
+        if not self._run_id or not self._workspace_path:
+            return
+
+        run_dir = self._workspace_path / "runs" / self._run_id
+        if not run_dir.exists():
+            return
+
+        # Find all files in run directory
+        for file_path in sorted(run_dir.rglob("*")):
+            if file_path.is_file():
+                relative_path = file_path.relative_to(run_dir)
+                item = QListWidgetItem(str(relative_path))
+                item.setData(Qt.ItemDataRole.UserRole, str(file_path))
+
+                # Add icon based on extension
+                ext = file_path.suffix.lower()
+                if ext == ".json":
+                    item.setToolTip("Arquivo JSON - dados estruturados")
+                elif ext == ".md":
+                    item.setToolTip("Arquivo Markdown - relatorio")
+                elif ext == ".log":
+                    item.setToolTip("Arquivo de log")
+                elif ext == ".txt":
+                    item.setToolTip("Arquivo de texto")
+                elif ext == ".patch":
+                    item.setToolTip("Arquivo de diff/patch")
+                else:
+                    item.setToolTip(f"Arquivo {ext}")
+
+                self.artifacts_list.addItem(item)
+
+    def _open_artifact_item(self, item: QListWidgetItem):
+        """Open artifact when double-clicked."""
+        file_path = item.data(Qt.ItemDataRole.UserRole)
+        if file_path:
+            self._open_file(file_path)
+
+    def _open_selected_artifact(self):
+        """Open currently selected artifact."""
+        current = self.artifacts_list.currentItem()
+        if current:
+            self._open_artifact_item(current)
+
+    def _open_file(self, file_path: str):
+        """Open a file with the default application."""
+        path = Path(file_path)
+        if not path.exists():
+            QMessageBox.warning(self, "Erro", f"Arquivo nao encontrado:\n{file_path}")
+            return
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", str(path)])
+            else:
+                subprocess.run(["xdg-open", str(path)])
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao abrir arquivo:\n{e}")
+
+    def set_workspace_path(self, workspace_path: Path):
+        """Set the workspace path for artifact discovery."""
+        self._workspace_path = workspace_path
 
     def set_run(self, run: RunDetailViewModel):
         """Update display with run details."""
@@ -462,6 +580,9 @@ class RunDetailPanel(QWidget):
         # Update buttons
         self.resume_btn.setVisible(run.status not in ("completed", "cancelled"))
 
+        # Refresh artifacts
+        self._refresh_artifacts()
+
     def set_loading(self, loading: bool):
         """Show/hide loading indicator."""
         self.progress_bar.setVisible(loading)
@@ -480,6 +601,7 @@ class RunDetailPanel(QWidget):
         self.review_text.clear()
         self.validation_text.clear()
         self.git_text.clear()
+        self.artifacts_list.clear()
         self.checkpoint_group.setVisible(False)
         self.approve_btn.setVisible(False)
         self.reject_btn.setVisible(False)
@@ -519,6 +641,7 @@ class RunPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._workspace_path: Optional[Path] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -571,3 +694,8 @@ class RunPanel(QWidget):
     def get_detail_panel(self) -> RunDetailPanel:
         """Get detail panel for external connections."""
         return self.detail_panel
+
+    def set_workspace_path(self, workspace_path: Path):
+        """Set workspace path for artifact discovery."""
+        self._workspace_path = workspace_path
+        self.detail_panel.set_workspace_path(workspace_path)

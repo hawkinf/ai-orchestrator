@@ -28,7 +28,7 @@ from .run_panel import RunPanel
 from .config_panel import ConfigPanel
 from .log_viewer import LogViewer
 from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
-from .worker import WorkerManager, TaskWorker
+from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
 
 
@@ -177,6 +177,9 @@ class MainWindow(QMainWindow):
         self.settings_store = None
         self.worker_manager = WorkerManager()
         self._current_run_id: Optional[str] = None
+        self._mock_executor = False  # Set to True for testing without real API calls
+        self._project_path: Optional[Path] = None
+        self._config_path: Optional[Path] = None
 
         self.logger.info("Initializing MainWindow...")
 
@@ -303,9 +306,10 @@ class MainWindow(QMainWindow):
         # Load runs
         self._refresh_runs()
 
-        # Set workspace for log viewer
+        # Set workspace for log viewer and run panel
         if self.paths:
             self.log_viewer.set_workspace_path(self.paths.workspace_root)
+            self.run_panel.set_workspace_path(self.paths.workspace_root)
 
         # Check for pending checkpoints
         self._check_checkpoints()
@@ -323,8 +327,12 @@ class MainWindow(QMainWindow):
             from orchestrator.integrated_engine import IntegratedTaskEngine
             from orchestrator.state_store import StateStore
 
-            self.engine = IntegratedTaskEngine(self.config, self.paths, mock_executor=False)
+            self.engine = IntegratedTaskEngine(self.config, self.paths, mock_executor=self._mock_executor)
             self.store = StateStore(self.paths)
+
+            # Store paths for workers
+            self._project_path = self.paths.project_root
+            self._config_path = self.paths.workspace_root / "config.yaml"
 
             self.logger.info("Engine initialized successfully")
         except Exception as e:
@@ -361,13 +369,18 @@ class MainWindow(QMainWindow):
         """Handle task submission."""
         self.logger.info(f"Task submitted: {config.task_description[:50]}...")
 
-        if not self.engine:
-            self.logger.error("Cannot submit task: engine not initialized")
+        # Check if a run is already active
+        if self.worker_manager.has_active_run:
             QMessageBox.warning(
                 self,
-                "Erro",
-                "Engine nao inicializado. Verifique as configuracoes."
+                "Aviso",
+                "Ja existe uma run em execucao. Aguarde a conclusao ou cancele."
             )
+            return
+
+        # Validate task description
+        if not config.task_description or not config.task_description.strip():
+            QMessageBox.warning(self, "Aviso", "Descricao da tarefa e obrigatoria.")
             return
 
         try:
@@ -375,19 +388,27 @@ class MainWindow(QMainWindow):
             self.status_widget.set_loading(True)
             self.status_widget.set_run("...", "iniciando", "preparando", 0)
 
-            # Start worker
-            worker = self.worker_manager.start_task(self.engine, config)
-            if worker:
-                worker.signals.started.connect(self._on_worker_started)
-                worker.signals.progress.connect(self._on_worker_progress)
-                worker.signals.finished.connect(self._on_worker_finished)
-                worker.signals.error.connect(self._on_worker_error)
-                self.logger.info("Task worker started")
-            else:
-                self.logger.error("Failed to create task worker")
-                self.status_widget.set_loading(False)
-                QMessageBox.warning(self, "Erro", "Falha ao iniciar tarefa.")
-                return
+            # Disable submit button
+            self.task_panel.set_submitting(True)
+
+            # Start worker using the new RunWorker
+            worker = self.worker_manager.start_run(
+                task_config=config,
+                project_path=self._project_path,
+                config_path=self._config_path,
+                mock_executor=self._mock_executor,
+            )
+
+            # Connect signals for detailed progress
+            worker.signals.run_started.connect(self._on_run_started)
+            worker.signals.progress.connect(self._on_run_progress)
+            worker.signals.phase_changed.connect(self._on_phase_changed)
+            worker.signals.iteration_changed.connect(self._on_iteration_changed)
+            worker.signals.checkpoint_pending.connect(self._on_checkpoint_pending)
+            worker.signals.run_completed.connect(self._on_run_completed)
+            worker.signals.run_failed.connect(self._on_run_failed)
+
+            self.logger.info("RunWorker started")
 
             # Save to recent
             if self.settings_store:
@@ -397,17 +418,137 @@ class MainWindow(QMainWindow):
             self.logger.error(f"Error submitting task: {e}")
             self.logger.debug(traceback.format_exc())
             self.status_widget.set_loading(False)
+            self.task_panel.set_submitting(False)
             QMessageBox.critical(self, "Erro", f"Erro ao iniciar tarefa:\n\n{e}")
+
+    # --- New RunWorker signal handlers ---
+
+    @Slot(str)
+    def _on_run_started(self, run_id: str):
+        """Handle run started."""
+        self._current_run_id = run_id
+        self.status_widget.set_run(run_id, "executando", "iniciado", 1)
+        self.logger.info(f"Run started: {run_id}")
+
+    @Slot(dict)
+    def _on_run_progress(self, event_dict: dict):
+        """Handle run progress update."""
+        run_id = event_dict.get("run_id", self._current_run_id or "")
+        phase = event_dict.get("phase", "executando")
+        message = event_dict.get("message", "")
+        iteration = event_dict.get("iteration", 1)
+        max_iterations = event_dict.get("max_iterations", 3)
+        is_error = event_dict.get("is_error", False)
+
+        # Update status bar
+        self.status_widget.set_run(run_id, "executando", phase, iteration)
+
+        # Log progress
+        if is_error:
+            self.logger.warning(f"Run progress [{phase}]: {message}")
+        else:
+            self.logger.debug(f"Run progress [{phase}]: {message}")
+
+        # Optionally update run panel with live progress
+        # This could be extended to show real-time logs
+
+    @Slot(str, str)
+    def _on_phase_changed(self, run_id: str, phase: str):
+        """Handle phase change."""
+        self.status_widget.set_run(run_id, "executando", phase, self._get_current_iteration())
+        self.logger.info(f"Phase changed: {phase}")
+
+    @Slot(str, int, int)
+    def _on_iteration_changed(self, run_id: str, current: int, max_iter: int):
+        """Handle iteration change."""
+        phase = "executando"
+        self.status_widget.set_run(run_id, "executando", phase, current)
+        self.status_widget.iter_label.setText(f"Iteracao: {current}/{max_iter}")
+        self.logger.info(f"Iteration changed: {current}/{max_iter}")
+
+    @Slot(str, str, str)
+    def _on_checkpoint_pending(self, run_id: str, reason: str, description: str):
+        """Handle checkpoint pending notification."""
+        self.logger.info(f"Checkpoint pending: {reason} - {description}")
+        self.status_widget.set_run(run_id, "checkpoint", "aguardando", self._get_current_iteration())
+        self.status_widget.set_loading(False)
+
+        # Check for checkpoints and show notification
+        self._check_checkpoints()
+
+        # Re-enable submit
+        self.task_panel.set_submitting(False)
+
+        # Refresh runs list
+        self._refresh_runs()
+
+    @Slot(str, dict)
+    def _on_run_completed(self, run_id: str, summary: dict):
+        """Handle run completed."""
+        self.logger.info(f"Run completed: {run_id}")
+        self.status_widget.set_loading(False)
+        self.status_widget.set_run(run_id, "concluido", "finalizado", 0)
+
+        # Re-enable submit
+        self.task_panel.set_submitting(False)
+
+        # Build completion message
+        message_parts = ["Tarefa concluida com sucesso!"]
+        if summary.get("objective"):
+            message_parts.append(f"\nObjetivo: {summary['objective'][:100]}")
+        if summary.get("iterations"):
+            message_parts.append(f"\nIteracoes: {summary['iterations']}")
+        if summary.get("commit_hash"):
+            message_parts.append(f"\nCommit: {summary['commit_hash'][:8]}")
+
+        QMessageBox.information(self, "Sucesso", "\n".join(message_parts))
+
+        # Refresh and navigate
+        self._refresh_runs()
+        self._check_checkpoints()
+        self._navigate("runs")
+
+        # Select the completed run
+        self._on_run_selected(run_id)
+
+    @Slot(str, str)
+    def _on_run_failed(self, run_id: str, error: str):
+        """Handle run failed."""
+        self.logger.error(f"Run failed: {run_id} - {error}")
+        self.status_widget.set_loading(False)
+        self.status_widget.set_run(run_id or "erro", "falhou", "erro", 0)
+
+        # Re-enable submit
+        self.task_panel.set_submitting(False)
+
+        # Show error
+        QMessageBox.critical(self, "Erro", f"Erro na execucao:\n\n{error}")
+
+        # Refresh
+        self._refresh_runs()
+
+    def _get_current_iteration(self) -> int:
+        """Get current iteration from the active run."""
+        if self._current_run_id and self.store:
+            try:
+                state = self.store.load_state(self._current_run_id)
+                if state:
+                    return state.current_iteration or 1
+            except Exception:
+                pass
+        return 1
+
+    # --- Legacy worker handlers (kept for backwards compatibility) ---
 
     @Slot(str)
     def _on_worker_started(self, run_id: str):
-        """Handle worker started."""
+        """Handle worker started (legacy)."""
         self._current_run_id = run_id
         self.status_widget.set_run(run_id, "executando", "iniciado", 1)
 
     @Slot(ProgressEvent)
     def _on_worker_progress(self, event: ProgressEvent):
-        """Handle worker progress."""
+        """Handle worker progress (legacy)."""
         # Update status
         if event.run_id:
             phase = event.phase or "executando"
@@ -420,7 +561,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str, bool, str)
     def _on_worker_finished(self, run_id: str, success: bool, message: str):
-        """Handle worker finished."""
+        """Handle worker finished (legacy)."""
         self.status_widget.set_loading(False)
 
         if success:
@@ -438,7 +579,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str, str)
     def _on_worker_error(self, run_id: str, error: str):
-        """Handle worker error."""
+        """Handle worker error (legacy)."""
         self.status_widget.set_loading(False)
         self.status_widget.set_run(run_id or "erro", "falhou", "erro", 0)
         QMessageBox.critical(self, "Erro", f"Erro na execucao:\n\n{error}")
@@ -566,22 +707,38 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _on_resume_run(self, run_id: str):
         """Handle resume run request."""
-        if not self.engine:
+        if self.worker_manager.has_active_run:
+            QMessageBox.warning(
+                self,
+                "Aviso",
+                "Ja existe uma run em execucao. Aguarde a conclusao."
+            )
             return
 
         self.status_widget.set_loading(True)
+        self._current_run_id = run_id
 
-        worker = self.worker_manager.resume_task(self.engine, run_id)
-        worker.signals.progress.connect(self._on_worker_progress)
-        worker.signals.finished.connect(self._on_worker_finished)
-        worker.signals.error.connect(self._on_worker_error)
+        # Use new ResumeRunWorker
+        worker = self.worker_manager.resume_run(
+            run_id=run_id,
+            project_path=self._project_path,
+            config_path=self._config_path,
+            mock_executor=self._mock_executor,
+        )
+
+        # Connect signals
+        worker.signals.progress.connect(self._on_run_progress)
+        worker.signals.phase_changed.connect(self._on_phase_changed)
+        worker.signals.iteration_changed.connect(self._on_iteration_changed)
+        worker.signals.checkpoint_pending.connect(self._on_checkpoint_pending)
+        worker.signals.run_completed.connect(self._on_run_completed)
+        worker.signals.run_failed.connect(self._on_run_failed)
+
+        self.logger.info(f"Resume worker started for: {run_id}")
 
     @Slot(str, str)
     def _on_checkpoint_approve(self, run_id: str, note: str):
         """Handle checkpoint approval."""
-        if not self.engine:
-            return
-
         # Show dialog
         state = self.store.load_state(run_id) if self.store else None
         reason = state.checkpoint.reason.value if state and state.checkpoint else "checkpoint"
@@ -589,25 +746,48 @@ class MainWindow(QMainWindow):
 
         dialog = CheckpointDialog(run_id, reason, desc, self)
         if dialog.exec():
-            if dialog.was_approved():
-                worker = self.worker_manager.process_checkpoint(
-                    self.engine, run_id, True, dialog.get_note()
-                )
-            else:
-                worker = self.worker_manager.process_checkpoint(
-                    self.engine, run_id, False, dialog.get_note()
-                )
-            worker.signals.finished.connect(self._on_checkpoint_processed)
-            worker.signals.error.connect(self._on_worker_error)
+            approve = dialog.was_approved()
+            note = dialog.get_note()
+
+            # Use new CheckpointActionWorker
+            worker = self.worker_manager.handle_checkpoint(
+                run_id=run_id,
+                approve=approve,
+                note=note,
+                project_path=self._project_path,
+                config_path=self._config_path,
+                mock_executor=self._mock_executor,
+            )
+
+            worker.signals.status_changed.connect(
+                lambda rid, status: self._on_checkpoint_status_changed(rid, status, approve)
+            )
+            worker.signals.run_failed.connect(self._on_run_failed)
+
+            self.logger.info(f"Checkpoint {'approved' if approve else 'rejected'} for: {run_id}")
 
     @Slot(str, str)
     def _on_checkpoint_reject(self, run_id: str, reason: str):
         """Handle checkpoint rejection."""
         self._on_checkpoint_approve(run_id, reason)  # Use same dialog
 
+    def _on_checkpoint_status_changed(self, run_id: str, status: str, was_approved: bool):
+        """Handle checkpoint status change."""
+        action = "aprovado" if was_approved else "rejeitado"
+        self.logger.info(f"Checkpoint {action} for {run_id}, new status: {status}")
+
+        self._refresh_runs()
+        self._check_checkpoints()
+
+        QMessageBox.information(
+            self,
+            "Checkpoint",
+            f"Checkpoint {action}.\nNovo status: {status}"
+        )
+
     @Slot(str, bool, str)
     def _on_checkpoint_processed(self, run_id: str, success: bool, message: str):
-        """Handle checkpoint processed."""
+        """Handle checkpoint processed (legacy)."""
         self._refresh_runs()
         self._check_checkpoints()
         if success:
