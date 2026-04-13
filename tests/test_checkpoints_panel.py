@@ -339,6 +339,7 @@ class TestCheckpointsWorker:
             assert "Total:" in summary
 
 
+@pytest.mark.usefixtures("qapp")
 class TestCheckpointsPanel:
     """Smoke tests for checkpoints panel."""
 
