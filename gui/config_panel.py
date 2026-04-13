@@ -3,14 +3,18 @@
 import sys
 from pathlib import Path
 from typing import Optional, List
+import os
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QSpinBox, QCheckBox, QGroupBox, QScrollArea,
-    QFrame, QTabWidget, QTextEdit, QComboBox, QMessageBox,
+    QFrame, QTabWidget, QTextEdit, QComboBox, QMessageBox, QApplication,
 )
-from PySide6.QtCore import Signal, QTimer
+from PySide6.QtCore import Signal, QTimer, Qt
 
+from orchestrator.setup_validator import SetupValidationResult
+
+from .mode_manager import MODE_ADVANCED, MODE_SIMPLE
 from .ui_models import SettingsViewModel
 
 # Add parent to path for imports
@@ -23,13 +27,18 @@ class ConfigPanel(QWidget):
     """Panel for editing configuration settings."""
 
     settings_changed = Signal(SettingsViewModel)
-    settings_saved = Signal()
+    settings_saved = Signal(SettingsViewModel)
     settings_reset = Signal()
+    mode_changed = Signal(str)
+    onboarding_requested = Signal()
+    complete_setup_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._settings: Optional[SettingsViewModel] = None
         self._environment_tab_index: Optional[int] = None
+        self._interface_mode = MODE_SIMPLE
+        self._setup_result: Optional[SetupValidationResult] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -40,14 +49,35 @@ class ConfigPanel(QWidget):
 
         # Header
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
 
         title = QLabel("Configuracoes")
         title.setStyleSheet("font-size: 16px; font-weight: 600; color: #e6edf3;")
         header_layout.addWidget(title)
 
+        self.mode_btn = QPushButton("Modo simples")
+        self.mode_btn.setProperty("secondary", True)
+        self.mode_btn.clicked.connect(self._toggle_mode)
+        header_layout.addWidget(self.mode_btn)
+
+        self.onboarding_btn = QPushButton("Executar onboarding novamente")
+        self.onboarding_btn.setProperty("ghost", True)
+        self.onboarding_btn.clicked.connect(self.onboarding_requested.emit)
+        header_layout.addWidget(self.onboarding_btn)
+
         header_layout.addStretch()
 
         layout.addLayout(header_layout)
+
+        subtitle = QLabel(
+            "Revise o essencial primeiro. O restante fica disponível quando você precisar de mais controle."
+        )
+        subtitle.setProperty("subheading", True)
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        self.setup_card = self._create_setup_card()
+        layout.addWidget(self.setup_card)
 
         # Tabs for different sections
         self.tabs = QTabWidget()
@@ -124,15 +154,19 @@ class ConfigPanel(QWidget):
         row1.addWidget(QLabel("Projeto:"))
         self.project_path_edit = QLineEdit()
         self.project_path_edit.setPlaceholderText(".")
+        self.project_path_edit.setToolTip("Pasta raiz do projeto onde as alterações serão aplicadas.")
         row1.addWidget(self.project_path_edit)
         path_layout.addLayout(row1)
+        path_layout.addWidget(self._helper_label("Escolha a pasta principal do projeto que será alterado."))
 
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Workspace:"))
         self.workspace_path_edit = QLineEdit()
         self.workspace_path_edit.setPlaceholderText("./workspace")
+        self.workspace_path_edit.setToolTip("Pasta usada para logs, runs e artefatos do app.")
         row2.addWidget(self.workspace_path_edit)
         path_layout.addLayout(row2)
+        path_layout.addWidget(self._helper_label("O workspace guarda histórico, logs e relatórios."))
 
         content_layout.addWidget(path_group)
 
@@ -142,8 +176,10 @@ class ConfigPanel(QWidget):
         profile_layout.addWidget(QLabel("Perfil Ativo:"))
         self.profile_combo = QComboBox()
         self.profile_combo.addItems(["flutter", "python", "generic"])
+        self.profile_combo.setToolTip("Define o conjunto padrão de validações e o contexto do projeto.")
         profile_layout.addWidget(self.profile_combo)
         profile_layout.addStretch()
+        profile_layout.addWidget(self._helper_label("Use flutter para apps Flutter, python para projetos Python e generic para fluxos livres."))
         content_layout.addWidget(profile_group)
 
         # Iterations
@@ -153,8 +189,10 @@ class ConfigPanel(QWidget):
         self.max_iter_spin = QSpinBox()
         self.max_iter_spin.setRange(1, 10)
         self.max_iter_spin.setValue(3)
+        self.max_iter_spin.setToolTip("Número máximo de tentativas automáticas antes de parar.")
         iter_layout.addWidget(self.max_iter_spin)
         iter_layout.addStretch()
+        iter_layout.addWidget(self._helper_label("Aumente apenas quando quiser mais insistência automática."))
         content_layout.addWidget(iter_group)
 
         content_layout.addStretch()
@@ -184,6 +222,7 @@ class ConfigPanel(QWidget):
         row1.addWidget(QLabel("Modelo:"))
         self.planner_model_edit = QLineEdit()
         self.planner_model_edit.setPlaceholderText("gpt-4o")
+        self.planner_model_edit.setToolTip("Modelo usado para planejar a tarefa.")
         row1.addWidget(self.planner_model_edit)
         planner_layout.addLayout(row1)
 
@@ -192,6 +231,7 @@ class ConfigPanel(QWidget):
         self.planner_timeout_spin = QSpinBox()
         self.planner_timeout_spin.setRange(30, 600)
         self.planner_timeout_spin.setValue(120)
+        self.planner_timeout_spin.setToolTip("Tempo máximo de espera para o planner responder.")
         row2.addWidget(self.planner_timeout_spin)
         row2.addStretch()
         planner_layout.addLayout(row2)
@@ -206,6 +246,7 @@ class ConfigPanel(QWidget):
         row1.addWidget(QLabel("Modelo:"))
         self.reviewer_model_edit = QLineEdit()
         self.reviewer_model_edit.setPlaceholderText("gpt-4o")
+        self.reviewer_model_edit.setToolTip("Modelo usado para revisar a execução.")
         row1.addWidget(self.reviewer_model_edit)
         reviewer_layout.addLayout(row1)
 
@@ -214,6 +255,7 @@ class ConfigPanel(QWidget):
         self.reviewer_timeout_spin = QSpinBox()
         self.reviewer_timeout_spin.setRange(30, 600)
         self.reviewer_timeout_spin.setValue(120)
+        self.reviewer_timeout_spin.setToolTip("Tempo máximo de espera para a revisão.")
         row2.addWidget(self.reviewer_timeout_spin)
         row2.addStretch()
         reviewer_layout.addLayout(row2)
@@ -259,6 +301,7 @@ class ConfigPanel(QWidget):
         row1.addWidget(QLabel("Comando:"))
         self.executor_cmd_edit = QLineEdit()
         self.executor_cmd_edit.setPlaceholderText("claude")
+        self.executor_cmd_edit.setToolTip("Comando usado para chamar o executor no seu terminal.")
         row1.addWidget(self.executor_cmd_edit)
         executor_layout.addLayout(row1)
 
@@ -267,6 +310,7 @@ class ConfigPanel(QWidget):
         self.executor_timeout_spin = QSpinBox()
         self.executor_timeout_spin.setRange(60, 3600)
         self.executor_timeout_spin.setValue(600)
+        self.executor_timeout_spin.setToolTip("Tempo máximo da etapa de execução.")
         row2.addWidget(self.executor_timeout_spin)
         row2.addStretch()
         executor_layout.addLayout(row2)
@@ -339,6 +383,7 @@ class ConfigPanel(QWidget):
         row1.addWidget(QLabel("Remote:"))
         self.git_remote_edit = QLineEdit()
         self.git_remote_edit.setPlaceholderText("origin")
+        self.git_remote_edit.setToolTip("Nome do remoto usado em push automático.")
         row1.addWidget(self.git_remote_edit)
         git_layout.addLayout(row1)
 
@@ -346,6 +391,7 @@ class ConfigPanel(QWidget):
         row2.addWidget(QLabel("Branch:"))
         self.git_branch_edit = QLineEdit()
         self.git_branch_edit.setPlaceholderText("main")
+        self.git_branch_edit.setToolTip("Branch preferida para operações Git.")
         row2.addWidget(self.git_branch_edit)
         git_layout.addLayout(row2)
 
@@ -353,6 +399,7 @@ class ConfigPanel(QWidget):
         row3.addWidget(QLabel("Branches Protegidas:"))
         self.protected_branches_edit = QLineEdit()
         self.protected_branches_edit.setPlaceholderText("main, master")
+        self.protected_branches_edit.setToolTip("Branches que merecem cuidado extra antes de commit ou push.")
         row3.addWidget(self.protected_branches_edit)
         git_layout.addLayout(row3)
 
@@ -363,9 +410,11 @@ class ConfigPanel(QWidget):
         auto_layout = QVBoxLayout(auto_group)
 
         self.auto_commit_cb = QCheckBox("Permitir Auto Commit")
+        self.auto_commit_cb.setToolTip("Cria commit automaticamente quando a execução termina com sucesso.")
         auto_layout.addWidget(self.auto_commit_cb)
 
         self.auto_push_cb = QCheckBox("Permitir Auto Push")
+        self.auto_push_cb.setToolTip("Envia o commit para o remoto ao final da tarefa.")
         auto_layout.addWidget(self.auto_push_cb)
 
         content_layout.addWidget(auto_group)
@@ -395,6 +444,7 @@ class ConfigPanel(QWidget):
 
         self.require_human_cb = QCheckBox("Exigir aprovacao humana em mudancas destrutivas")
         self.require_human_cb.setChecked(True)
+        self.require_human_cb.setToolTip("Pausa antes de ações sensíveis para você aprovar.")
         checkpoint_layout.addWidget(self.require_human_cb)
 
         checkpoint_layout.addWidget(QLabel("Gatilhos de checkpoint (um por linha):"))
@@ -640,6 +690,48 @@ class ConfigPanel(QWidget):
         self._check_api_key()
 
         return widget
+
+    def _helper_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setProperty("muted", True)
+        label.setWordWrap(True)
+        return label
+
+    def _create_setup_card(self) -> QWidget:
+        card = QFrame()
+        card.setProperty("card", True)
+        layout = QVBoxLayout(card)
+        layout.setSpacing(10)
+        layout.setContentsMargins(18, 16, 18, 16)
+
+        title_row = QHBoxLayout()
+        title = QLabel("Configuração mínima recomendada")
+        title.setStyleSheet("font-size: 14px; font-weight: 600;")
+        title_row.addWidget(title)
+        title_row.addStretch()
+
+        self.complete_setup_btn = QPushButton("Concluir configuração")
+        self.complete_setup_btn.clicked.connect(self.complete_setup_requested.emit)
+        title_row.addWidget(self.complete_setup_btn)
+        layout.addLayout(title_row)
+
+        intro = QLabel(
+            "Para operar bem, o app precisa de projeto, perfil, OpenAI, executor e workspace. Git é recomendado, mas opcional."
+        )
+        intro.setProperty("muted", True)
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        self.setup_status_label = QLabel("Checklist ainda não executado.")
+        self.setup_status_label.setWordWrap(True)
+        layout.addWidget(self.setup_status_label)
+
+        self.setup_checks_label = QLabel("")
+        self.setup_checks_label.setWordWrap(True)
+        self.setup_checks_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(self.setup_checks_label)
+
+        return card
 
     def focus_openai_configuration(self):
         """Open the environment tab and focus the OpenAI API key field."""
@@ -984,6 +1076,43 @@ class ConfigPanel(QWidget):
         self.require_human_cb.setChecked(settings.require_human_on_destructive)
         self.triggers_edit.setPlainText("\n".join(settings.checkpoint_triggers))
 
+    def set_interface_mode(self, mode: str):
+        """Apply the current interface mode."""
+        self._interface_mode = MODE_ADVANCED if mode == MODE_ADVANCED else MODE_SIMPLE
+        self.mode_btn.setText("Modo avançado" if self._interface_mode == MODE_ADVANCED else "Modo simples")
+
+        tab_visibility = {
+            "Geral": True,
+            "Modelos": self._interface_mode == MODE_ADVANCED,
+            "Executor": True,
+            "Validacao": self._interface_mode == MODE_ADVANCED,
+            "Git": True,
+            "Seguranca": self._interface_mode == MODE_ADVANCED,
+            "Ambiente": True,
+        }
+        for index in range(self.tabs.count()):
+            title = self.tabs.tabText(index)
+            if hasattr(self.tabs, "setTabVisible"):
+                self.tabs.setTabVisible(index, tab_visibility.get(title, True))
+
+    def set_setup_validation(self, result: SetupValidationResult):
+        """Render the setup checklist state."""
+        self._setup_result = result
+        if result.is_ready:
+            self.setup_status_label.setText("Checklist concluído. A configuração mínima está pronta.")
+            self.setup_status_label.setStyleSheet("color: #22c55e;")
+        else:
+            self.setup_status_label.setText("Ainda faltam itens obrigatórios antes da primeira automação.")
+            self.setup_status_label.setStyleSheet("color: #f59e0b;")
+
+        lines = []
+        for check in result.checks:
+            icon = "OK" if check.ok else ("!" if check.required else "-")
+            color = "#22c55e" if check.ok else ("#ef4444" if check.required else "#f59e0b")
+            suffix = "" if not check.action_hint else f" — {check.action_hint}"
+            lines.append(f"<span style='color:{color}'>{icon}</span> <b>{check.title}</b>: {check.summary}{suffix}")
+        self.setup_checks_label.setText("<br/>".join(lines))
+
     def get_settings(self) -> SettingsViewModel:
         """Get settings from the form."""
         flutter_cmds = [c.strip() for c in self.flutter_cmds_edit.toPlainText().split("\n") if c.strip()]
@@ -1015,34 +1144,13 @@ class ConfigPanel(QWidget):
 
     def _validate_config(self):
         """Validate current configuration."""
-        settings = self.get_settings()
-        errors = []
-
-        if not settings.project_path:
-            errors.append("Caminho do projeto e obrigatorio")
-        if not settings.executor_command:
-            errors.append("Comando do executor e obrigatorio")
-        if settings.max_iterations < 1:
-            errors.append("Max iteracoes deve ser pelo menos 1")
-
-        if errors:
-            QMessageBox.warning(
-                self,
-                "Validacao",
-                "Erros encontrados:\n\n" + "\n".join(f"- {e}" for e in errors)
-            )
-        else:
-            QMessageBox.information(
-                self,
-                "Validacao",
-                "Configuracao valida!"
-            )
+        self.complete_setup_requested.emit()
 
     def _save_settings(self):
         """Save settings."""
         settings = self.get_settings()
         self.settings_changed.emit(settings)
-        self.settings_saved.emit()
+        self.settings_saved.emit(settings)
 
     def _reset_defaults(self):
         """Reset to default settings."""
@@ -1056,3 +1164,9 @@ class ConfigPanel(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.set_settings(SettingsViewModel())
             self.settings_reset.emit()
+
+    def _toggle_mode(self):
+        """Toggle between simple and advanced modes."""
+        new_mode = MODE_SIMPLE if self._interface_mode == MODE_ADVANCED else MODE_ADVANCED
+        self.set_interface_mode(new_mode)
+        self.mode_changed.emit(new_mode)

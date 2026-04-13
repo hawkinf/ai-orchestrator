@@ -91,6 +91,9 @@ Behavior notes:
 - In development, running `python -m gui.app` from a terminal keeps that terminal open for logs.
 - In the packaged Windows build, `AIOrchestrator.exe` runs as a desktop app without an attached console window.
 - If the OpenAI API key is missing, the GUI shows a compact guidance dialog and can open `Configuracoes > Ambiente` directly.
+- On the first launch, the app can open a guided onboarding wizard to configure project, profile, OpenAI, executor, workspace and Git basics.
+- The GUI supports `Modo simples` and `Modo avançado`. Simple mode hides rare options and technical panels; advanced mode exposes full controls.
+- The renewed `Ajuda` panel includes an embedded manual with search, practical sections and a copy button for instructions.
 
 The GUI provides:
 
@@ -105,6 +108,55 @@ The GUI provides:
 - Real-time progress updates during pipeline execution
 - Resume interrupted runs
 - Open run artifacts directly from the UI
+
+### GUI Onboarding
+
+Recommended first-run flow:
+
+1. Open the onboarding wizard.
+2. Choose the project directory and profile.
+3. Configure the OpenAI API key.
+4. Confirm the Claude executor command.
+5. Validate workspace and Git.
+6. Finish and go to `Nova Tarefa` or `Diagnóstico`.
+
+The onboarding can be opened again from `Config`.
+
+### Simple vs Advanced Mode
+
+- `Modo simples`: focuses on the minimum setup, basic task submission and guided explanations.
+- `Modo avançado`: exposes replay, policies, extra configuration tabs and the full set of controls.
+
+The selected mode is saved in the GUI preferences.
+
+### Minimum Recommended Setup
+
+The GUI now tracks a minimum recommended setup checklist:
+
+- project path
+- profile
+- OpenAI configuration
+- Claude executor availability
+- workspace readiness
+- Git readiness as a recommended, non-blocking item
+
+Use `Configurações` to review the checklist or trigger `Concluir configuração`.
+
+### Embedded Manual
+
+The `Ajuda` panel includes:
+
+- Visão Geral
+- Primeiros Passos
+- Como criar uma tarefa
+- Planner / executor / reviewer
+- Checkpoints
+- Policies
+- Replay
+- Diagnóstico
+- Configuração de OpenAI, Claude e Git
+- Modo simples vs avançado
+- FAQ e solução de problemas
 
 ### Option B: CLI Integrated Mode
 

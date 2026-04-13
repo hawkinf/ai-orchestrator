@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal, Qt
 
+from .mode_manager import MODE_ADVANCED, MODE_SIMPLE
 from .ui_models import TaskConfig
 
 
@@ -20,6 +21,7 @@ class TaskPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._interface_mode = MODE_SIMPLE
         self._setup_ui()
 
     def _setup_ui(self):
@@ -200,21 +202,25 @@ class TaskPanel(QWidget):
 
         self.auto_validate_cb = QCheckBox("Validar automaticamente")
         self.auto_validate_cb.setChecked(True)
+        self.auto_validate_cb.setToolTip("Executa os checks do perfil quando a tarefa termina.")
         right_col.addWidget(self.auto_validate_cb)
         right_col.addWidget(self._create_option_help("Executa testes e validações do perfil ao final da execução."))
 
         self.auto_commit_cb = QCheckBox("Commit automático")
         self.auto_commit_cb.setChecked(False)
+        self.auto_commit_cb.setToolTip("Cria commit quando a validação termina com sucesso.")
         right_col.addWidget(self.auto_commit_cb)
         right_col.addWidget(self._create_option_help("Cria commit quando a validação terminar com sucesso."))
 
         self.require_approval_cb = QCheckBox("Exigir aprovação em mudanças críticas")
         self.require_approval_cb.setChecked(True)
+        self.require_approval_cb.setToolTip("Pausa antes de ações destrutivas ou sensíveis.")
         right_col.addWidget(self.require_approval_cb)
         right_col.addWidget(self._create_option_help("Pausa antes de ações destrutivas ou sensíveis."))
 
         self.auto_push_cb = QCheckBox("Push automático")
         self.auto_push_cb.setChecked(False)
+        self.auto_push_cb.setToolTip("Envia o commit para o remoto ao final da execução.")
         right_col.addWidget(self.auto_push_cb)
         right_col.addWidget(self._create_option_help("Envia o commit para o remoto quando a execução terminar."))
 
@@ -395,3 +401,30 @@ class TaskPanel(QWidget):
             auto_push=self.auto_push_cb.isChecked(),
             require_approval_destructive=self.require_approval_cb.isChecked(),
         )
+
+    def set_interface_mode(self, mode: str):
+        """Apply the global interface mode to the task form."""
+        self._interface_mode = MODE_ADVANCED if mode == MODE_ADVANCED else MODE_SIMPLE
+        if self._interface_mode == MODE_ADVANCED:
+            self.advanced_toggle_btn.setVisible(False)
+            self.settings_section.setHidden(False)
+            self.summary_label.setText("Modo avançado ativo")
+        else:
+            self.advanced_toggle_btn.setVisible(True)
+            self.advanced_toggle_btn.setChecked(False)
+            self.advanced_toggle_btn.setText("Mostrar opções avançadas")
+            self.settings_section.setHidden(True)
+            self.summary_label.setText("Modo simples ativo")
+
+    def apply_preferences(self, show_advanced: bool):
+        """Restore the previous advanced-options preference."""
+        if self._interface_mode == MODE_ADVANCED:
+            self.settings_section.setVisible(True)
+            return
+
+        self.advanced_toggle_btn.setChecked(show_advanced)
+        self.settings_section.setVisible(show_advanced)
+        self.advanced_toggle_btn.setText(
+            "Ocultar opções avançadas" if show_advanced else "Mostrar opções avançadas"
+        )
+        self._update_summary()

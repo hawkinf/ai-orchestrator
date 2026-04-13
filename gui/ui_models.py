@@ -180,6 +180,8 @@ class UIPreferences:
     last_tab: str = "new_task"
     last_project_path: str = "."
     last_profile: str = "generic"
+    interface_mode: str = "simple"
+    onboarding_completed: bool = False
 
     sidebar_collapsed: bool = False
     show_advanced_options: bool = False

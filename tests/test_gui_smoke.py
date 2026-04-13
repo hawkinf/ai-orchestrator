@@ -90,6 +90,7 @@ class TestUIModels:
         assert prefs.window_width == 1200
         assert prefs.window_height == 800
         assert prefs.last_tab == "new_task"
+        assert prefs.interface_mode == "simple"
 
 
 class TestSettingsStore:
@@ -139,6 +140,18 @@ class TestSettingsStore:
         prefs = store.load_preferences()
         assert prefs.recent_projects[0] == "/project1"
         assert len(prefs.recent_projects) == 2
+
+    def test_interface_mode_persistence(self, tmp_path):
+        """Interface mode and onboarding state should persist."""
+        from gui.settings_store import SettingsStore
+
+        store = SettingsStore(tmp_path)
+        store.update_interface_mode("advanced")
+        store.mark_onboarding_completed(True)
+
+        prefs = store.load_preferences()
+        assert prefs.interface_mode == "advanced"
+        assert prefs.onboarding_completed is True
 
     def test_config_to_settings_reads_profile_models(self, tmp_path):
         """config_to_settings should support ProfileConfig objects."""
@@ -300,6 +313,17 @@ class TestTaskPanel:
         assert panel.advanced_toggle_btn.text() == "Ocultar opções avançadas"
         panel.close()
 
+    def test_task_panel_advanced_mode_shows_settings(self, qapp):
+        """Advanced interface mode should expose advanced settings immediately."""
+        from gui.task_panel import TaskPanel
+
+        panel = TaskPanel()
+        panel.set_interface_mode("advanced")
+
+        assert not panel.settings_section.isHidden()
+        assert not panel.advanced_toggle_btn.isVisible()
+        panel.close()
+
 
 class TestConfigPanel:
     """Test ConfigPanel functionality."""
@@ -336,6 +360,18 @@ class TestConfigPanel:
 
         assert panel.tabs.currentIndex() == panel._environment_tab_index
         assert panel.api_key_input.hasFocus()
+        panel.close()
+
+    def test_config_panel_mode_toggle(self, qapp):
+        """ConfigPanel should support switching between simple and advanced modes."""
+        from gui.config_panel import ConfigPanel
+
+        panel = ConfigPanel()
+        panel.set_interface_mode("advanced")
+
+        assert panel.mode_btn.text() == "Modo avançado"
+        panel.set_interface_mode("simple")
+        assert panel.mode_btn.text() == "Modo simples"
         panel.close()
 
 

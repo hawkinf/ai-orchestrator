@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 
+import yaml
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QStackedWidget, QFrame, QStatusBar, QMessageBox,
@@ -17,6 +18,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QCloseEvent
 
+from orchestrator.config import OrchestratorConfig, load_config
+from orchestrator.setup_validator import SetupValidationResult, SetupValidator
+
+from .mode_manager import InterfaceModeManager, MODE_SIMPLE
+from .onboarding_wizard import OnboardingWizard
 from .styles import MAIN_STYLESHEET, get_status_color
 from .ui_models import (
     RunListItem, RunDetailViewModel, TaskConfig, ProgressEvent,
@@ -254,6 +260,7 @@ class MainWindow(QMainWindow):
         self._mock_executor = False  # Set to True for testing without real API calls
         self._project_path: Optional[Path] = None
         self._config_path: Optional[Path] = None
+        self._interface_mode = MODE_SIMPLE
 
         self.logger.info("Initializing MainWindow...")
 
@@ -282,6 +289,7 @@ class MainWindow(QMainWindow):
             self.move(prefs.window_x, prefs.window_y)
             if prefs.window_maximized:
                 self.showMaximized()
+            self._interface_mode = InterfaceModeManager.normalize(prefs.interface_mode)
 
     def _setup_ui(self):
         """Setup the user interface."""
@@ -357,6 +365,7 @@ class MainWindow(QMainWindow):
         self.status_widget = StatusWidget()
         self.setStatusBar(QStatusBar())
         self.statusBar().addPermanentWidget(self.status_widget, 1)
+        self._apply_interface_mode(self._interface_mode)
 
     def _connect_signals(self):
         """Connect signals and slots."""
@@ -382,6 +391,9 @@ class MainWindow(QMainWindow):
 
         # Config panel
         self.config_panel.settings_saved.connect(self._on_settings_saved)
+        self.config_panel.mode_changed.connect(self._on_interface_mode_changed)
+        self.config_panel.onboarding_requested.connect(self._run_onboarding)
+        self.config_panel.complete_setup_requested.connect(self._validate_minimum_setup)
 
         # Diagnostics panel
         self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
@@ -444,6 +456,15 @@ class MainWindow(QMainWindow):
         if self.paths:
             self._init_replay_panel()
 
+        if self.settings_store:
+            prefs = self.settings_store.load_preferences()
+            self.task_panel.apply_preferences(prefs.show_advanced_options)
+            last_tab = prefs.last_tab or "new_task"
+            if last_tab in InterfaceModeManager.visible_sections(self._interface_mode):
+                self._navigate(last_tab)
+
+        QTimer.singleShot(0, self._maybe_run_onboarding)
+
     def _init_engine(self):
         """Initialize the orchestration engine."""
         if not self.config or not self.paths:
@@ -462,7 +483,7 @@ class MainWindow(QMainWindow):
 
             # Store paths for workers
             self._project_path = self.paths.project_root
-            self._config_path = self.paths.workspace_root / "config.yaml"
+            self._config_path = self.paths.project_root / "config.yaml"
 
             self.logger.info("Engine initialized successfully")
 
@@ -506,13 +527,13 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            current = self.policy_panel or self._policy_placeholder
+            idx = self.stack.indexOf(current)
             self.policy_panel = PolicyPanel(self.paths.workspace_root)
 
-            # Replace placeholder
-            idx = self.stack.indexOf(self._policy_placeholder)
             if idx >= 0:
-                self.stack.removeWidget(self._policy_placeholder)
-                self._policy_placeholder.deleteLater()
+                self.stack.removeWidget(current)
+                current.deleteLater()
                 self.stack.insertWidget(idx, self.policy_panel)
 
             self.logger.info("Policy panel initialized")
@@ -525,13 +546,13 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            current = self.replay_panel or self._replay_placeholder
+            idx = self.stack.indexOf(current)
             self.replay_panel = ReplayPanel(self.paths.workspace_root)
 
-            # Replace placeholder
-            idx = self.stack.indexOf(self._replay_placeholder)
             if idx >= 0:
-                self.stack.removeWidget(self._replay_placeholder)
-                self._replay_placeholder.deleteLater()
+                self.stack.removeWidget(current)
+                current.deleteLater()
                 self.stack.insertWidget(idx, self.replay_panel)
 
             self.logger.info("Replay panel initialized")
@@ -540,6 +561,9 @@ class MainWindow(QMainWindow):
 
     def _navigate(self, key: str):
         """Navigate to a page."""
+        if key not in InterfaceModeManager.visible_sections(self._interface_mode):
+            key = "settings"
+
         page_map = {
             "new_task": 0,
             "runs": 1,
@@ -1040,13 +1064,17 @@ class MainWindow(QMainWindow):
             else:
                 subprocess.run(["xdg-open", str(run_path)])
 
-    def _on_settings_saved(self):
+    @Slot(object)
+    def _on_settings_saved(self, settings):
         """Handle settings saved."""
-        QMessageBox.information(
-            self,
-            "Configuracoes",
-            "Configuracoes salvas!\nAlgumas alteracoes podem requerer reinicio."
-        )
+        self._apply_and_persist_settings(settings)
+        result = self._validate_minimum_setup()
+        message = "Configurações salvas."
+        if result and result.is_ready:
+            message += "\nA configuração mínima recomendada está pronta."
+        else:
+            message += "\nAinda faltam alguns itens no checklist mínimo."
+        QMessageBox.information(self, "Configurações", message)
 
     def _on_dashboard_run_selected(self, run_id: str):
         """Handle run selection from dashboard."""
@@ -1098,6 +1126,8 @@ class MainWindow(QMainWindow):
                 prefs.window_x = self.x()
                 prefs.window_y = self.y()
             prefs.window_maximized = self.isMaximized()
+            prefs.show_advanced_options = self.task_panel.settings_section.isVisible()
+            prefs.interface_mode = self._interface_mode
             self.settings_store.save_preferences(prefs)
 
         event.accept()
@@ -1111,3 +1141,133 @@ class MainWindow(QMainWindow):
         self.store = store
         self._refresh_runs()
         self._check_checkpoints()
+
+    def _apply_interface_mode(self, mode: str):
+        """Apply interface mode across the shell and pages."""
+        self._interface_mode = InterfaceModeManager.normalize(mode)
+        self.task_panel.set_interface_mode(self._interface_mode)
+        self.config_panel.set_interface_mode(self._interface_mode)
+        visible_sections = InterfaceModeManager.visible_sections(self._interface_mode)
+
+        for key in ["new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
+            btn = self.sidebar.get_button(key)
+            if btn:
+                btn.setVisible(key in visible_sections)
+
+    @Slot(str)
+    def _on_interface_mode_changed(self, mode: str):
+        """Persist and apply interface mode changes."""
+        self._apply_interface_mode(mode)
+        if self.settings_store:
+            self.settings_store.update_interface_mode(self._interface_mode)
+
+    def _validate_minimum_setup(self) -> Optional[SetupValidationResult]:
+        """Validate the minimum recommended setup."""
+        settings = self.config_panel.get_settings()
+        validator = SetupValidator(Path(settings.project_path or Path.cwd()))
+        result = validator.validate_minimum_configuration(
+            project_path=Path(settings.project_path or "."),
+            workspace_path=Path(settings.workspace_path or "./workspace"),
+            profile=settings.active_profile,
+            executor_command=settings.executor_command,
+        )
+        self.config_panel.set_setup_validation(result)
+        return result
+
+    def _maybe_run_onboarding(self):
+        """Trigger onboarding when setup is missing or incomplete."""
+        if not self.settings_store:
+            return
+
+        prefs = self.settings_store.load_preferences()
+        result = self._validate_minimum_setup()
+        if not prefs.onboarding_completed or (result and not result.is_ready):
+            self._run_onboarding()
+
+    def _run_onboarding(self):
+        """Launch the first-run onboarding wizard."""
+        wizard = OnboardingWizard(self._project_path or Path.cwd(), self)
+        if self.config:
+            settings = config_to_settings(self.config)
+            wizard.project_page.project_edit.setText(settings.project_path)
+            wizard.project_page.profile_combo.setCurrentText(settings.active_profile)
+            wizard.executor_page.command_edit.setText(settings.executor_command)
+            wizard.workspace_page.workspace_edit.setText(settings.workspace_path)
+
+        if wizard.exec():
+            wizard.save_openai_key_if_needed()
+            self._apply_and_persist_settings(wizard.build_settings())
+            if self.settings_store:
+                self.settings_store.mark_onboarding_completed(True)
+            self._validate_minimum_setup()
+            self._navigate(wizard.selected_destination())
+
+    def _settings_to_config_payload(self, settings) -> dict:
+        """Build a config payload suitable for config.yaml."""
+        base = (
+            self.config.model_dump(mode="json")
+            if isinstance(self.config, OrchestratorConfig)
+            else OrchestratorConfig().model_dump(mode="json")
+        )
+        base["project_path"] = settings.project_path
+        base["workspace_path"] = settings.workspace_path
+        base["active_profile"] = settings.active_profile
+        base["max_iterations"] = settings.max_iterations
+        base["allow_auto_commit"] = settings.allow_auto_commit
+        base["auto_push_on_complete"] = settings.allow_auto_push
+        base["require_human_on_destructive"] = settings.require_human_on_destructive
+        base["checkpoint_triggers"] = settings.checkpoint_triggers
+        base["planner"]["model_name"] = settings.planner_model
+        base["planner"]["timeout_seconds"] = settings.planner_timeout
+        base["reviewer"]["model_name"] = settings.reviewer_model
+        base["reviewer"]["timeout_seconds"] = settings.reviewer_timeout
+        base["executor"]["command"] = settings.executor_command
+        base["executor"]["timeout_seconds"] = settings.executor_timeout
+        base["git"]["remote"] = settings.git_remote
+        base["git"]["branch"] = settings.git_branch
+        base["git"]["protected_branches"] = settings.protected_branches
+        base["profiles"]["flutter"]["validation_commands"] = settings.flutter_commands
+        base["profiles"]["python"]["validation_commands"] = settings.python_commands
+        return base
+
+    def _apply_and_persist_settings(self, settings):
+        """Write config.yaml and refresh runtime state."""
+        project_path = Path(settings.project_path or ".").resolve()
+        project_path.mkdir(parents=True, exist_ok=True)
+        config_payload = self._settings_to_config_payload(settings)
+        config_path = project_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump(config_payload, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+
+        self.config = load_config(config_path)
+        from orchestrator.paths import OrchestratorPaths
+
+        self.paths = OrchestratorPaths(self.config.workspace_path, self.config.project_path)
+        self._project_path = self.paths.project_root
+        self._config_path = config_path
+        self.settings_store = SettingsStore(self.paths.workspace_root)
+
+        self.config_panel.set_settings(config_to_settings(self.config))
+        self.config_panel.set_interface_mode(self._interface_mode)
+        self.task_panel.path_edit.setText(settings.project_path or ".")
+        self.task_panel.profile_combo.setCurrentText(settings.active_profile)
+        self.log_viewer.set_workspace_path(self.paths.workspace_root)
+        self.run_panel.set_workspace_path(self.paths.workspace_root)
+        self.dashboard_panel.set_workspace(self.paths.workspace_root)
+        self.checkpoints_panel.set_workspace(self.paths.workspace_root)
+        self.checkpoints_panel.set_config(self.config)
+        self.diagnostics_panel.set_config(self.config, self.paths, self._project_path)
+        self._init_engine()
+        self._init_policy_panel()
+        self._init_replay_panel()
+        self._refresh_runs()
+        self._check_checkpoints()
+
+        prefs = self.settings_store.load_preferences()
+        prefs.last_project_path = settings.project_path
+        prefs.last_profile = settings.active_profile
+        prefs.interface_mode = self._interface_mode
+        prefs.show_advanced_options = self.task_panel.settings_section.isVisible()
+        self.settings_store.save_preferences(prefs)

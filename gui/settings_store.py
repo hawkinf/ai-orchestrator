@@ -41,6 +41,8 @@ class SettingsStore:
                     last_tab=data.get("last_tab", "new_task"),
                     last_project_path=data.get("last_project_path", "."),
                     last_profile=data.get("last_profile", "generic"),
+                    interface_mode=data.get("interface_mode", "simple"),
+                    onboarding_completed=data.get("onboarding_completed", False),
                     sidebar_collapsed=data.get("sidebar_collapsed", False),
                     show_advanced_options=data.get("show_advanced_options", False),
                     recent_projects=data.get("recent_projects", []),
@@ -67,6 +69,8 @@ class SettingsStore:
             "last_tab": prefs.last_tab,
             "last_project_path": prefs.last_project_path,
             "last_profile": prefs.last_profile,
+            "interface_mode": prefs.interface_mode,
+            "onboarding_completed": prefs.onboarding_completed,
             "sidebar_collapsed": prefs.sidebar_collapsed,
             "show_advanced_options": prefs.show_advanced_options,
             "recent_projects": prefs.recent_projects[:self.MAX_RECENT_ITEMS],
@@ -133,6 +137,18 @@ class SettingsStore:
         """Update last used profile."""
         prefs = self.load_preferences()
         prefs.last_profile = profile
+        self.save_preferences(prefs)
+
+    def update_interface_mode(self, mode: str):
+        """Update the preferred interface mode."""
+        prefs = self.load_preferences()
+        prefs.interface_mode = mode
+        self.save_preferences(prefs)
+
+    def mark_onboarding_completed(self, completed: bool = True):
+        """Mark onboarding completion state."""
+        prefs = self.load_preferences()
+        prefs.onboarding_completed = completed
         self.save_preferences(prefs)
 
 
