@@ -14,7 +14,7 @@ from typing import Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QLineEdit, QComboBox, QTableWidget,
-    QTableWidgetItem, QHeaderView, QSplitter,
+    QTableWidgetItem, QHeaderView, QSplitter, QDialog,
     QMessageBox, QApplication, QCheckBox, QSpinBox,
 )
 from PySide6.QtCore import Signal, Qt, QTimer
@@ -26,6 +26,8 @@ from .dashboard_models import (
     format_duration, format_datetime,
 )
 from .dashboard_worker import DashboardManager
+from .system_insights_panel import SystemInsightsPanel
+from .system_insights_widget import SystemInsightsWidget
 
 logger = logging.getLogger("ai_orchestrator.dashboard_panel")
 
@@ -657,6 +659,10 @@ class DashboardPanel(QWidget):
         self.metrics_bar = MetricsBar()
         layout.addWidget(self.metrics_bar)
 
+        self.system_insights_widget = SystemInsightsWidget()
+        self.system_insights_widget.open_requested.connect(self._open_system_insights_panel)
+        layout.addWidget(self.system_insights_widget)
+
         # Filter bar
         self.filter_bar = FilterBar()
         self.filter_bar.filter_changed.connect(self._on_filter_changed)
@@ -741,6 +747,7 @@ class DashboardPanel(QWidget):
     def _update_content_state(self, has_runs: bool):
         """Switch between empty state and populated dashboard."""
         self.metrics_bar.setVisible(has_runs)
+        self.system_insights_widget.setVisible(has_runs)
         self.filter_bar.setVisible(has_runs)
         self.splitter.setVisible(has_runs)
         self.empty_state.setVisible(not has_runs)
@@ -752,6 +759,7 @@ class DashboardPanel(QWidget):
         # Create manager
         self._manager = DashboardManager(workspace_path)
         self.detail_preview.set_workspace(workspace_path)
+        self.system_insights_widget.set_workspace(workspace_path)
 
         # Start auto-refresh
         if self.auto_refresh_cb.isChecked():
@@ -798,6 +806,10 @@ class DashboardPanel(QWidget):
         filtered = self._state.apply_filter()
         self.runs_table.set_runs(filtered)
         self._update_content_state(bool(runs))
+        if runs and self._workspace_path:
+            self.system_insights_widget.load_report(limit=min(max(len(runs), 10), 50))
+        else:
+            self.system_insights_widget.clear_report()
 
         # Update status
         if runs:
@@ -934,6 +946,23 @@ class DashboardPanel(QWidget):
                 subprocess.run(["xdg-open", str(path)])
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao abrir:\n{e}")
+
+    def _open_system_insights_panel(self):
+        """Open complete system insights in a dialog."""
+        if not self._workspace_path:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Insights do Sistema")
+        dialog.resize(980, 720)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        panel = SystemInsightsPanel(self._workspace_path)
+        layout.addWidget(panel)
+        panel.refresh()
+        dialog.exec()
 
     def refresh(self):
         """Force refresh."""

@@ -156,7 +156,29 @@ The `Ajuda` panel includes:
 - Diagnóstico
 - Configuração de OpenAI, Claude e Git
 - Modo simples vs avançado
+- Como interpretar os Insights do Sistema
 - FAQ e solução de problemas
+
+### System Insights
+
+The dashboard now includes a compact `Insights do Sistema` block and a full aggregate view for the recent run history.
+
+It reuses the existing run index, timeline, and per-run insights to detect patterns such as:
+
+- recurring validation failures
+- frequent checkpoints
+- Git failures
+- increasing failure rate
+- average duration trend
+- success rate by profile
+
+Use the full view to:
+
+- analyze the last 10, 20, 50 or 100 runs
+- filter by profile and status
+- limit the analysis to a date range
+- export the report to `workspace/logs/system_insights_<timestamp>.json`
+- export the report to `workspace/logs/system_insights_<timestamp>.md`
 
 ### Option B: CLI Integrated Mode
 

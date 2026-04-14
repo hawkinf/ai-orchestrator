@@ -326,6 +326,52 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="system_insights",
+        title="Como Interpretar os Insights do Sistema",
+        summary="Leia padrões do histórico recente e transforme sinais em ações práticas.",
+        content="""
+<h2>Como Interpretar os Insights do Sistema</h2>
+
+<p>Os <b>Insights do Sistema</b> olham várias runs ao mesmo tempo para resumir o estado operacional recente do AI Orchestrator.</p>
+
+<h3>O que eles analisam</h3>
+<ul>
+<li><b>Confiabilidade:</b> taxa de sucesso, aumento de falhas e estabilidade geral</li>
+<li><b>Validação:</b> falhas recorrentes em testes, lint e checks finais</li>
+<li><b>Execução e review:</b> runs com muitas iterações ou follow-ups frequentes</li>
+<li><b>Checkpoint:</b> quantas runs exigiram intervenção manual</li>
+<li><b>Git:</b> problemas de commit, push ou estado do repositório</li>
+<li><b>Performance:</b> duração média e perfis mais lentos</li>
+</ul>
+
+<h3>Como ler o resumo executivo</h3>
+<p>O resumo executivo responde a pergunta: <b>"como o sistema tem se comportado nas últimas runs?"</b></p>
+<ul>
+<li><b>Sistema estável:</b> sem concentração de falhas ou gargalos claros</li>
+<li><b>Sistema utilizável com alertas:</b> funciona, mas há sinais para acompanhar</li>
+<li><b>Sistema degradado:</b> falhas, duração ou checkpoints acima do esperado</li>
+<li><b>Sistema com falhas recorrentes:</b> o histórico recente pede correção antes de escalar o uso</li>
+</ul>
+
+<h3>Exemplos de interpretação</h3>
+<ul>
+<li><b>"Falhas recorrentes em validação":</b> revise comandos do profile e rode diagnóstico antes da próxima task</li>
+<li><b>"Checkpoints frequentes":</b> o escopo pode estar arriscado demais ou as policies estão rígidas</li>
+<li><b>"Profile Flutter está mais lento":</b> compare comandos de validação e tamanho médio das tarefas desse profile</li>
+<li><b>"Aumento recente de falhas":</b> use replay nas últimas falhas antes de insistir no mesmo tipo de tarefa</li>
+</ul>
+
+<h3>Boas práticas</h3>
+<ol>
+<li>Comece pelo <b>resumo executivo</b></li>
+<li>Veja as <b>métricas agregadas</b> para entender tendência</li>
+<li>Leia os <b>alertas e recomendações</b> priorizados</li>
+<li>Use <b>Replay</b> e <b>Diagnóstico</b> quando houver repetição de falhas</li>
+<li>Compare os perfis para descobrir onde o fluxo está mais previsível</li>
+</ol>
+""",
+    ),
+    HelpSection(
         key="insights",
         title="Como Interpretar os Insights",
         summary="Entenda os insights gerados após cada execução.",

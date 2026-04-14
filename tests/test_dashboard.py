@@ -226,6 +226,8 @@ class TestDashboardPanel:
             RunsTable,
             RunDetailPreview,
         )
+        from gui.system_insights_panel import SystemInsightsPanel
+        from gui.system_insights_widget import SystemInsightsWidget
 
         assert DashboardPanel is not None
         assert MetricCardWidget is not None
@@ -233,6 +235,8 @@ class TestDashboardPanel:
         assert FilterBar is not None
         assert RunsTable is not None
         assert RunDetailPreview is not None
+        assert SystemInsightsWidget is not None
+        assert SystemInsightsPanel is not None
 
     def test_metric_card_widget_creation(self):
         """Test creating MetricCardWidget."""
@@ -383,6 +387,7 @@ class TestDashboardPanel:
         panel = DashboardPanel()
         assert panel is not None
         assert panel.metrics_bar is not None
+        assert panel.system_insights_widget is not None
         assert panel.filter_bar is not None
         assert panel.runs_table is not None
         assert panel.detail_preview is not None

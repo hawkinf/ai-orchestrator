@@ -30,3 +30,12 @@ def test_help_panel_search_filters_content(qapp):
         if not panel.section_list.item(index).isHidden()
     ]
     assert any("OpenAI" in item for item in visible_items)
+
+
+def test_help_panel_has_system_insights_section(qapp):
+    from gui.help_panel import HelpPanel
+
+    panel = HelpPanel()
+    panel.set_current_section("system_insights")
+
+    assert "Insights do Sistema" in panel.content_browser.toPlainText()
