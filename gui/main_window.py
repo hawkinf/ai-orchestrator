@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import subprocess
 import sys
 import traceback
@@ -20,6 +21,7 @@ from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QCloseEvent, QIcon
 
 from orchestrator.config import OrchestratorConfig, load_config
+from orchestrator.models import RunState
 from orchestrator.observability import configure_observability, get_observability
 from orchestrator.recommended_actions import ActionTarget, RecommendedAction
 from orchestrator.setup_validator import SetupValidationResult, SetupValidator
@@ -997,11 +999,114 @@ class MainWindow(QMainWindow):
         # Re-enable submit
         self.task_panel.set_submitting(False)
 
-        # Show error
-        QMessageBox.critical(self, "Erro", f"Erro na execucao:\n\n{error}")
+        summary = self._build_run_failure_summary(run_id, error)
+
+        if self.settings_store and self.settings_store.is_first_task_pending():
+            self._show_first_run_completion(run_id, False, summary, mark_completed=False)
+        else:
+            QMessageBox.critical(self, "Tarefa não concluída", summary)
 
         # Refresh
         self._refresh_runs()
+
+    def _load_run_state(self, run_id: str) -> Optional[RunState]:
+        """Load persisted state for a run when available."""
+        if not run_id or not self.store:
+            return None
+
+        try:
+            return self.store.load_state(run_id)
+        except Exception:
+            return None
+
+    def _build_run_failure_summary(self, run_id: str, error: str) -> str:
+        """Create a user-facing failure summary for the run."""
+        state = self._load_run_state(run_id)
+
+        validation_summary = state.validation_final if state else None
+        if validation_summary and not validation_summary.all_passed:
+            failed_result = next(
+                (result for result in validation_summary.results if not result.success),
+                None,
+            )
+            if failed_result:
+                detail = self._compact_failure_detail(
+                    failed_result.stderr or failed_result.stdout or error
+                )
+                message = (
+                    f"A tarefa avançou, mas a validação automática falhou ao executar '{failed_result.command}'."
+                )
+                if detail:
+                    message += f" Detalhe: {detail}"
+                message += " Abra Diagnóstico para revisar o ambiente e ajuste o comando antes de tentar novamente."
+                return message
+
+        git_result = state.git_result_final if state else None
+        if git_result and not git_result.success:
+            detail = self._compact_failure_detail(git_result.error or git_result.message or error)
+            message = f"A execução chegou na etapa de Git, mas não conseguiu concluir '{git_result.operation}'."
+            if detail:
+                message += f" Detalhe: {detail}"
+            message += " Revise o estado do repositório e tente novamente."
+            return message
+
+        combined_error = "\n".join(
+            part for part in [
+                state.error_message if state else "",
+                error,
+            ] if part
+        )
+        normalized = combined_error.lower()
+        detail = self._compact_failure_detail(combined_error)
+
+        if any(term in normalized for term in ["openai", "api key", "api_key", "401", "authentication"]):
+            message = (
+                "A execução não conseguiu usar a OpenAI porque a chave da API parece ausente ou inválida. "
+                "Abra Configurações e revise a credencial antes de tentar novamente."
+            )
+            if detail:
+                message += f" Detalhe: {detail}"
+            return message
+
+        if any(term in normalized for term in ["executor", "claude", "not recognized", "command not found", "timed out", "timeout"]):
+            message = (
+                "O executor configurado não respondeu corretamente durante a tarefa. "
+                "Verifique o comando do executor, o terminal e a conectividade antes de tentar novamente."
+            )
+            if detail:
+                message += f" Detalhe: {detail}"
+            return message
+
+        if any(term in normalized for term in ["git", "repository", "branch", "commit", "push"]):
+            message = "A tarefa foi interrompida por um problema no repositório Git."
+            if detail:
+                message += f" Detalhe: {detail}"
+            message += " Revise a branch, permissões e alterações locais antes de repetir a execução."
+            return message
+
+        message = "A tarefa encontrou um erro inesperado antes de terminar."
+        if detail:
+            message += f" Detalhe: {detail}"
+        message += " Abra Diagnóstico ou Logs para ver o contexto técnico completo."
+        return message
+
+    def _compact_failure_detail(self, text: str, max_length: int = 220) -> str:
+        """Reduce technical error text to one readable line."""
+        if not text:
+            return ""
+
+        cleaned = re.sub(r"\s+", " ", text).strip(" :-\n\t")
+        generic_messages = {
+            "task failed with error",
+            "erro na execucao",
+            "erro na execução",
+            "run failed",
+        }
+        if cleaned.lower() in generic_messages:
+            return ""
+        if len(cleaned) <= max_length:
+            return cleaned
+        return cleaned[: max_length - 3].rstrip() + "..."
 
     def _get_current_iteration(self) -> int:
         """Get current iteration from the active run."""
@@ -1686,27 +1791,28 @@ class MainWindow(QMainWindow):
 
         self._on_task_submitted(config)
 
-    def _show_first_run_completion(self, run_id: str, success: bool, summary: str):
+    def _show_first_run_completion(self, run_id: str, success: bool, summary: str, mark_completed: bool = True):
         """Show completion dialog after first run."""
         if not self.settings_store:
             return
 
         prefs = self.settings_store.load_preferences()
-        if prefs.first_task_completed:
+        if prefs.first_task_completed and not (not success and not mark_completed):
             return  # Already completed before
 
-        # Mark first task as completed
-        self.settings_store.mark_first_task_completed(run_id)
-        self.command_center_panel.set_runtime_context(
-            config=self.config,
-            project_path=self._project_path,
-            first_task_pending=False,
-        )
+        if mark_completed:
+            self.settings_store.mark_first_task_completed(run_id)
+            self.command_center_panel.set_runtime_context(
+                config=self.config,
+                project_path=self._project_path,
+                first_task_pending=False,
+            )
 
         # Show completion dialog
         dialog = FirstRunCompletionDialog(run_id, success, summary, self)
         dialog.open_dashboard.connect(lambda: self._navigate("dashboard"))
         dialog.create_new_task.connect(lambda: self._navigate("new_task"))
         dialog.open_artifacts.connect(self._open_run_folder)
+        dialog.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
         dialog.open_manual.connect(lambda: self._navigate("help"))
         dialog.exec()

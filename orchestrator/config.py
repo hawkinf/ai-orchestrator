@@ -7,7 +7,7 @@ from typing import Any, Optional
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Load .env file
@@ -66,6 +66,8 @@ class TimeoutConfig(BaseModel):
 class OrchestratorConfig(BaseSettings):
     """Main orchestrator configuration."""
 
+    model_config = SettingsConfigDict(env_prefix="ORCH_")
+
     # Paths
     project_path: Path = Field(default=Path("."))
     workspace_path: Path = Field(default=Path("./workspace"))
@@ -117,9 +119,6 @@ class OrchestratorConfig(BaseSettings):
     # Logging
     log_level: str = Field(default="INFO")
     log_to_file: bool = Field(default=True)
-
-    class Config:
-        env_prefix = "ORCH_"
 
     def get_active_profile(self) -> ProfileConfig:
         """Get the currently active profile."""

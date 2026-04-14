@@ -623,6 +623,7 @@ class FirstRunCompletionDialog(QDialog):
     open_dashboard = Signal()
     create_new_task = Signal()
     open_artifacts = Signal(str)  # run_id
+    open_diagnostics = Signal()
     open_manual = Signal()
 
     def __init__(self, run_id: str, success: bool, summary: str, parent=None):
@@ -658,7 +659,7 @@ class FirstRunCompletionDialog(QDialog):
         summary_layout = QVBoxLayout(summary_card)
         summary_layout.setContentsMargins(16, 14, 16, 14)
 
-        summary_header = QLabel("O que aconteceu:")
+        summary_header = QLabel("O que aconteceu:" if self.success else "Diagnóstico rápido:")
         summary_header.setStyleSheet("font-weight: 600; color: #6b7280; font-size: 11px;")
         summary_layout.addWidget(summary_header)
 
@@ -681,9 +682,9 @@ class FirstRunCompletionDialog(QDialog):
             )
         else:
             next_text = (
-                "• Verifique os logs para entender o problema\n"
-                "• Ajuste a tarefa e tente novamente\n"
-                "• Use o Diagnóstico para conferir a configuração"
+                "• Abra o Diagnóstico para validar ambiente, executor e credenciais\n"
+                "• Consulte os artefatos e logs para ver onde a execução parou\n"
+                "• Ajuste a configuração ou a tarefa e tente novamente"
             )
 
         next_label = QLabel(next_text)
@@ -698,22 +699,33 @@ class FirstRunCompletionDialog(QDialog):
 
         artifacts_btn = QPushButton("Ver Artefatos")
         artifacts_btn.setProperty("secondary", True)
+        artifacts_btn.setObjectName("first_run_artifacts_button")
         artifacts_btn.clicked.connect(lambda: self.open_artifacts.emit(self.run_id))
         actions.addWidget(artifacts_btn)
 
+        if not self.success:
+            diagnostics_btn = QPushButton("Abrir Diagnóstico")
+            diagnostics_btn.setProperty("secondary", True)
+            diagnostics_btn.setObjectName("first_run_diagnostics_button")
+            diagnostics_btn.clicked.connect(self.open_diagnostics.emit)
+            actions.addWidget(diagnostics_btn)
+
         manual_btn = QPushButton("Abrir Manual")
         manual_btn.setProperty("ghost", True)
+        manual_btn.setObjectName("first_run_manual_button")
         manual_btn.clicked.connect(self.open_manual.emit)
         actions.addWidget(manual_btn)
 
         actions.addStretch()
 
         new_task_btn = QPushButton("Nova Tarefa")
+        new_task_btn.setObjectName("first_run_new_task_button")
         new_task_btn.clicked.connect(self._on_new_task)
         actions.addWidget(new_task_btn)
 
         dashboard_btn = QPushButton("Ir para Dashboard")
         dashboard_btn.setProperty("secondary", True)
+        dashboard_btn.setObjectName("first_run_dashboard_button")
         dashboard_btn.clicked.connect(self._on_dashboard)
         actions.addWidget(dashboard_btn)
 

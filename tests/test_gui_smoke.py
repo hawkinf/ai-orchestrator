@@ -483,6 +483,46 @@ class TestMainWindowOpenAIFlow:
         assert window.stack.currentWidget() is window.command_center_panel
         window.close()
 
+    def test_build_run_failure_summary_prefers_validation_context(self, qapp):
+        """MainWindow should convert validation failures into actionable text."""
+        from gui.main_window import MainWindow
+        from orchestrator.models import (
+            RunState,
+            TaskRequest,
+            TaskStatus,
+            ValidationResult,
+            ValidationSummary,
+        )
+
+        window = MainWindow(config=None, paths=None)
+
+        class FakeStore:
+            def load_state(self, run_id):
+                return RunState(
+                    run_id=run_id,
+                    status=TaskStatus.FAILED,
+                    task=TaskRequest(description="Test task"),
+                    validation_final=ValidationSummary(
+                        all_passed=False,
+                        results=[
+                            ValidationResult(
+                                command="python -m pytest",
+                                success=False,
+                                stderr="AssertionError: suite failed",
+                            )
+                        ],
+                    ),
+                    error_message="Task failed with error",
+                )
+
+        window.store = FakeStore()
+        summary = window._build_run_failure_summary("run-123", "Task failed with error")
+
+        assert "validação automática falhou" in summary
+        assert "python -m pytest" in summary
+        assert "AssertionError: suite failed" in summary
+        window.close()
+
 
 class TestWorkerManager:
     """Test WorkerManager."""

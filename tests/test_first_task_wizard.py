@@ -196,6 +196,23 @@ def test_first_run_completion_dialog_shows_failure(qapp):
     assert not dialog.success
 
 
+def test_first_run_completion_dialog_failure_exposes_diagnostics_action(qapp):
+    from gui.first_task_wizard import FirstRunCompletionDialog
+    from PySide6.QtWidgets import QPushButton
+
+    dialog = FirstRunCompletionDialog(
+        run_id="test-run-123",
+        success=False,
+        summary="Falha na validação"
+    )
+    dialog.show()
+    qapp.processEvents()
+
+    diagnostics_button = dialog.findChild(QPushButton, "first_run_diagnostics_button")
+
+    assert diagnostics_button is not None
+
+
 def test_first_task_examples_exist_for_all_profiles():
     from gui.first_task_wizard import FIRST_TASK_EXAMPLES
 

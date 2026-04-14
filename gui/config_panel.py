@@ -737,12 +737,7 @@ class ConfigPanel(QWidget):
         """Open the environment tab and focus the OpenAI API key field."""
         if self._environment_tab_index is not None:
             self.tabs.setCurrentIndex(self._environment_tab_index)
-
-        def apply_focus():
-            self.api_key_input.setFocus()
-            self.api_key_input.selectAll()
-
-        QTimer.singleShot(0, apply_focus)
+        self._focus_input_field(self.api_key_input)
 
     def open_tab(self, tab_name: str):
         """Open a settings tab by visible title."""
@@ -755,22 +750,32 @@ class ConfigPanel(QWidget):
     def focus_executor_configuration(self):
         """Open the executor tab and focus the command field."""
         self.open_tab("Executor")
-
-        def apply_focus():
-            self.executor_cmd_edit.setFocus()
-            self.executor_cmd_edit.selectAll()
-
-        QTimer.singleShot(0, apply_focus)
+        self._focus_input_field(self.executor_cmd_edit)
 
     def focus_git_configuration(self):
         """Open the Git tab and focus the remote field."""
         self.open_tab("Git")
+        self._focus_input_field(self.git_remote_edit)
 
-        def apply_focus():
-            self.git_remote_edit.setFocus()
-            self.git_remote_edit.selectAll()
+    def _focus_input_field(self, widget: QLineEdit, attempt: int = 0):
+        """Focus an input after the tab and window are ready."""
+        window = self.window()
+        if window is not None:
+            if not window.isVisible():
+                window.show()
+            window.activateWindow()
 
-        QTimer.singleShot(0, apply_focus)
+        if not widget.isVisible():
+            if attempt < 5:
+                QTimer.singleShot(0, lambda: self._focus_input_field(widget, attempt + 1))
+            return
+
+        QApplication.processEvents()
+        widget.setFocus(Qt.FocusReason.OtherFocusReason)
+        widget.selectAll()
+
+        if not widget.hasFocus() and attempt < 5:
+            QTimer.singleShot(0, lambda: self._focus_input_field(widget, attempt + 1))
 
     def _toggle_key_visibility(self, show: bool):
         """Toggle API key visibility in input field."""
