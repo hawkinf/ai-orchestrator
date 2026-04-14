@@ -263,6 +263,69 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="understanding_runs",
+        title="Entendendo uma Run",
+        summary="Como acompanhar e entender o que aconteceu em cada execução.",
+        content="""
+<h2>Entendendo uma Run</h2>
+
+<h3>O que é uma Run?</h3>
+<p>Uma run é uma execução completa do pipeline para uma tarefa. Ela inclui todas as etapas desde o planejamento até a finalização.</p>
+
+<h3>Timeline da Run</h3>
+<p>A timeline mostra visualmente cada etapa da execução em ordem cronológica:</p>
+
+<ol>
+<li><b>📋 Planejamento:</b> O sistema analisa sua tarefa e cria um plano de execução, identificando arquivos afetados, riscos e passos de validação.</li>
+<li><b>⚙️ Execução:</b> O código é modificado automaticamente pelo executor (Claude), seguindo o plano definido.</li>
+<li><b>🔍 Revisão:</b> O resultado é analisado pelo revisor (OpenAI) para identificar problemas, regressões ou melhorias necessárias.</li>
+<li><b>✓ Validação:</b> São executados testes e verificações do projeto conforme o perfil configurado.</li>
+<li><b>📦 Git:</b> As alterações são registradas no Git com commit e/ou push.</li>
+<li><b>🏁 Finalização:</b> A run é finalizada e os artefatos são salvos.</li>
+</ol>
+
+<h3>Status dos Eventos</h3>
+<ul>
+<li><b style="color: #6b7280;">● Pendente:</b> Etapa ainda não iniciada</li>
+<li><b style="color: #3b82f6;">● Em andamento:</b> Etapa em execução</li>
+<li><b style="color: #22c55e;">● Concluído:</b> Etapa finalizada com sucesso</li>
+<li><b style="color: #ef4444;">● Falhou:</b> Etapa com erro</li>
+</ul>
+
+<h3>Detalhes Expansíveis</h3>
+<p>Cada evento na timeline pode ser expandido para ver:</p>
+<ul>
+<li><b>Logs:</b> Saída completa do processo</li>
+<li><b>Comandos:</b> Lista de comandos executados</li>
+<li><b>Arquivos:</b> Arquivos criados ou modificados</li>
+<li><b>Erros:</b> Detalhes de falhas quando houver</li>
+</ul>
+
+<h3>Eventos Especiais</h3>
+<ul>
+<li><b>⚠️ Checkpoint:</b> Pausa para aprovação antes de ação arriscada</li>
+<li><b>🔄 Nova Iteração:</b> Início de uma nova tentativa de refinar o resultado</li>
+<li><b>❌ Erro:</b> Algo falhou durante a execução</li>
+</ul>
+
+<h3>Como usar a Timeline</h3>
+<ol>
+<li>Acesse a aba <b>Execuções</b> no menu lateral</li>
+<li>Selecione uma run na lista</li>
+<li>A aba <b>Timeline</b> mostra todos os eventos</li>
+<li>Clique em "Mostrar detalhes" para expandir cada evento</li>
+</ol>
+
+<h3>Dicas</h3>
+<ul>
+<li>Use a timeline para entender o que aconteceu em runs com erro</li>
+<li>Verifique a duração de cada etapa para identificar gargalos</li>
+<li>Expanda os detalhes para ver logs e comandos executados</li>
+<li>A timeline é atualizada automaticamente durante a execução</li>
+</ul>
+""",
+    ),
+    HelpSection(
         key="roles",
         title="Planner, Executor e Reviewer",
         summary="O papel de cada etapa do pipeline.",

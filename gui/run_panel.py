@@ -19,6 +19,7 @@ from PySide6.QtGui import QColor
 
 from .ui_models import RunListItem, RunDetailViewModel
 from .styles import get_status_color, STATUS_COLORS
+from .run_timeline_widget import RunTimelineWidget
 
 
 class RunListPanel(QWidget):
@@ -237,6 +238,10 @@ class RunDetailPanel(QWidget):
 
         # Tabs
         self.tabs = QTabWidget()
+
+        # Timeline tab (new - first position)
+        self.timeline_widget = RunTimelineWidget(workspace_path=self._workspace_path)
+        self.tabs.addTab(self.timeline_widget, "Timeline")
 
         # Overview tab
         overview_widget = self._create_overview_tab()
@@ -475,10 +480,16 @@ class RunDetailPanel(QWidget):
     def set_workspace_path(self, workspace_path: Path):
         """Set the workspace path for artifact discovery."""
         self._workspace_path = workspace_path
+        self.timeline_widget.set_workspace(workspace_path)
 
     def set_run(self, run: RunDetailViewModel):
         """Update display with run details."""
         self._run_id = run.run_id
+
+        # Load timeline
+        if self._workspace_path:
+            self.timeline_widget.set_workspace(self._workspace_path)
+            self.timeline_widget.load_timeline(run.run_id)
 
         # Header
         self.title_label.setText(f"Run: {run.run_id}")
@@ -605,6 +616,7 @@ class RunDetailPanel(QWidget):
         self.checkpoint_group.setVisible(False)
         self.approve_btn.setVisible(False)
         self.reject_btn.setVisible(False)
+        self.timeline_widget.clear_timeline()
 
     def _open_folder(self):
         """Open run folder."""
