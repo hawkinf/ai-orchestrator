@@ -260,6 +260,7 @@ class CommandCenterPanel(QWidget):
     run_selected = Signal(str)
     navigate_to_new_task = Signal()
     start_first_task = Signal()
+    open_demo = Signal()
     open_checkpoints = Signal()
     open_diagnostics = Signal()
     open_system_insights = Signal()
@@ -370,6 +371,11 @@ class CommandCenterPanel(QWidget):
         self.feedback_btn.setProperty("secondary", True)
         self.feedback_btn.clicked.connect(self.open_feedback.emit)
         cta_row.addWidget(self.feedback_btn)
+
+        self.demo_btn = QPushButton("Ver demo interativo")
+        self.demo_btn.setProperty("secondary", True)
+        self.demo_btn.clicked.connect(self.open_demo.emit)
+        cta_row.addWidget(self.demo_btn)
 
         cta_row.addStretch()
         self.content_layout.addLayout(cta_row)

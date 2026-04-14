@@ -47,6 +47,7 @@ from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
 from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
 from .feedback_dialog import FeedbackDialog
+from .demo_controller import DemoController
 from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
 from .openai_config_dialog import OpenAIConfigRequiredDialog
@@ -288,6 +289,7 @@ class MainWindow(QMainWindow):
             self._setup_ui()
             self._connect_signals()
             self._load_initial_data()
+            self.demo_controller: Optional[DemoController] = None
             self.logger.info("MainWindow initialized successfully")
         except Exception as e:
             self.logger.error(f"Error initializing MainWindow: {e}")
@@ -410,6 +412,7 @@ class MainWindow(QMainWindow):
         self.command_center_panel.open_system_insights.connect(self._open_system_insights_from_command_center)
         self.command_center_panel.open_runs.connect(lambda: self._navigate("runs"))
         self.command_center_panel.open_feedback.connect(self._open_feedback_dialog)
+        self.command_center_panel.open_demo.connect(self._run_interactive_demo)
         self.command_center_panel.run_selected.connect(self._on_dashboard_run_selected)
         self.command_center_panel.recommended_action_requested.connect(self._execute_recommended_action)
 
@@ -440,6 +443,7 @@ class MainWindow(QMainWindow):
         self.diagnostics_panel.debug_mode_changed.connect(self._on_debug_mode_changed)
         self.help_panel.about_requested.connect(self._open_about_dialog)
         self.help_panel.updates_requested.connect(self._open_update_dialog)
+        self.help_panel.demo_requested.connect(self._run_interactive_demo)
 
         # Dashboard panel
         self.dashboard_panel.run_selected.connect(self._on_dashboard_run_selected)
@@ -1664,8 +1668,16 @@ class MainWindow(QMainWindow):
             destination = wizard.selected_destination()
             if destination == "first_task":
                 self._run_first_task_wizard()
+            elif destination == "demo":
+                self._run_interactive_demo()
             else:
                 self._navigate(destination)
+
+    def _run_interactive_demo(self):
+        """Launch the fictional in-app interactive demo."""
+        if self.demo_controller is None:
+            self.demo_controller = DemoController(self)
+        self.demo_controller.start()
 
     def _settings_to_config_payload(self, settings) -> dict:
         """Build a config payload suitable for config.yaml."""

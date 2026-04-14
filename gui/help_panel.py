@@ -27,6 +27,7 @@ class HelpPanel(QWidget):
     help_link_requested = Signal(str)
     about_requested = Signal()
     updates_requested = Signal()
+    demo_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -59,6 +60,10 @@ class HelpPanel(QWidget):
         self.copy_btn = QPushButton("Copiar instruções")
         self.copy_btn.clicked.connect(self._copy_current_section)
         actions.addWidget(self.copy_btn)
+
+        self.demo_btn = QPushButton("Abrir demo interativo")
+        self.demo_btn.clicked.connect(self.demo_requested.emit)
+        actions.addWidget(self.demo_btn)
 
         self.about_btn = QPushButton("Sobre")
         self.about_btn.clicked.connect(self.about_requested.emit)

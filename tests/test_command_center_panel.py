@@ -123,3 +123,16 @@ def test_command_center_feedback_button_emits_signal(qapp):
     qapp.processEvents()
 
     assert emitted == [True]
+
+
+def test_command_center_demo_button_emits_signal(qapp):
+    from gui.command_center_panel import CommandCenterPanel
+
+    panel = CommandCenterPanel()
+    emitted = []
+    panel.open_demo.connect(lambda: emitted.append(True))
+
+    panel.demo_btn.click()
+    qapp.processEvents()
+
+    assert emitted == [True]

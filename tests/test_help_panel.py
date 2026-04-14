@@ -57,3 +57,25 @@ def test_help_panel_has_command_center_section(qapp):
     panel.set_current_section("command_center")
 
     assert "Command Center" in panel.content_browser.toPlainText()
+
+
+def test_help_panel_has_interactive_demo_section(qapp):
+    from gui.help_panel import HelpPanel
+
+    panel = HelpPanel()
+    panel.set_current_section("interactive_demo")
+
+    assert "Demo Interativo" in panel.content_browser.toPlainText()
+
+
+def test_help_panel_demo_button_emits_signal(qapp):
+    from gui.help_panel import HelpPanel
+
+    panel = HelpPanel()
+    emitted = []
+    panel.demo_requested.connect(lambda: emitted.append(True))
+
+    panel.demo_btn.click()
+    qapp.processEvents()
+
+    assert emitted == [True]

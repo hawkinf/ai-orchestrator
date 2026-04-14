@@ -215,6 +215,7 @@ Behavior notes:
 - On the first launch, the app can open a guided onboarding wizard to configure project, profile, OpenAI, executor, workspace and Git basics.
 - The GUI supports `Modo simples` and `Modo avançado`. Simple mode hides rare options and technical panels; advanced mode exposes full controls.
 - The renewed `Ajuda` panel includes an embedded manual with search, practical sections and a copy button for instructions.
+- The GUI also includes a `Demo Interativo`, a fictional guided tour that teaches the product flow without touching a real project or requiring real credentials.
 
 The GUI provides:
 
@@ -242,6 +243,30 @@ Recommended first-run flow:
 6. Finish and go to `Nova Tarefa` or `Diagnóstico`.
 
 The onboarding can be opened again from `Config`.
+
+### Interactive Demo
+
+The `Demo Interativo` is a guided, fictional product tour inside the GUI.
+
+It is designed to:
+
+- explain what the app does
+- show the correct order of use
+- simulate a successful run, a failed run, and a checkpoint flow
+- teach how to read Timeline, Insights, Recommended Actions, and Diagnostics
+
+Safety guarantees:
+
+- no real project is modified
+- no real OpenAI key is required
+- no real executor is required
+- no real run is created
+
+You can open it from:
+
+- `Command Center` → `Ver demo interativo`
+- `Ajuda` → `Abrir demo interativo`
+- onboarding final step → `Abrir demo interativo`
 
 ### Simple vs Advanced Mode
 

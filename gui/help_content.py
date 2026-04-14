@@ -821,6 +821,42 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="interactive_demo",
+        title="Modo Demo Interativo",
+        summary="Como usar a demonstração guiada dentro da própria interface.",
+        content="""
+<h2>Modo Demo Interativo</h2>
+
+<p>O <b>Demo Interativo</b> é um tour guiado com dados fictícios. Ele existe para ensinar o fluxo do produto sem depender de projeto real, API key real ou executor real.</p>
+
+<h3>O que a demo mostra</h3>
+<ul>
+<li>Para que o AI Orchestrator serve</li>
+<li>Como navegar entre Command Center, Nova Tarefa, Dashboard, Checkpoints, Diagnóstico, Config e Ajuda</li>
+<li>Como seria uma configuração básica</li>
+<li>Exemplos fictícios de run com sucesso, falha e checkpoint</li>
+<li>Como ler Timeline, Insights e Ações Recomendadas</li>
+</ul>
+
+<h3>Onde abrir</h3>
+<ul>
+<li>Botão <b>Ver demo interativo</b> no Command Center</li>
+<li>Botão <b>Abrir demo interativo</b> na Ajuda</li>
+<li>Opção <b>Abrir demo interativo</b> ao concluir o onboarding</li>
+</ul>
+
+<h3>Segurança</h3>
+<p>A demo não cria runs reais, não grava configuração real por obrigação e não altera arquivos do projeto. Ela só reutiliza a interface real com exemplos visuais.</p>
+
+<h3>Quando usar</h3>
+<ul>
+<li>Na primeira vez que abrir o app</li>
+<li>Quando for apresentar o produto para outra pessoa</li>
+<li>Quando quiser revisar rapidamente o fluxo ideal de uso</li>
+</ul>
+""",
+    ),
+    HelpSection(
         key="faq",
         title="FAQ",
         summary="Respostas curtas para dúvidas comuns.",

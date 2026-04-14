@@ -264,6 +264,10 @@ class FinishPage(QWizardPage):
         self.diagnostics_radio.toggled.connect(self._update_destination)
         card_layout.addWidget(self.diagnostics_radio)
 
+        self.demo_radio = QRadioButton("Abrir demo interativo")
+        self.demo_radio.toggled.connect(self._update_destination)
+        card_layout.addWidget(self.demo_radio)
+
         layout.addWidget(card)
 
         # Button group for mutual exclusivity
@@ -272,6 +276,7 @@ class FinishPage(QWizardPage):
         self.button_group.addButton(self.new_task_radio)
         self.button_group.addButton(self.dashboard_radio)
         self.button_group.addButton(self.diagnostics_radio)
+        self.button_group.addButton(self.demo_radio)
 
     def initializePage(self):
         project = self.field("project_path")
@@ -294,6 +299,8 @@ class FinishPage(QWizardPage):
             self.next_destination = "dashboard"
         elif self.diagnostics_radio.isChecked():
             self.next_destination = "diagnostics"
+        elif self.demo_radio.isChecked():
+            self.next_destination = "demo"
         else:
             self.next_destination = "new_task"
 

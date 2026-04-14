@@ -38,3 +38,16 @@ def test_onboarding_destination_switches(qapp, tmp_path):
     qapp.processEvents()
 
     assert wizard.selected_destination() == "diagnostics"
+
+
+def test_onboarding_can_route_to_demo(qapp, tmp_path):
+    from gui.onboarding_wizard import OnboardingWizard
+
+    wizard = OnboardingWizard(tmp_path)
+    wizard.show()
+    qapp.processEvents()
+
+    wizard.finish_page.demo_radio.setChecked(True)
+    qapp.processEvents()
+
+    assert wizard.selected_destination() == "demo"

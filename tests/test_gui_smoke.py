@@ -483,6 +483,23 @@ class TestMainWindowOpenAIFlow:
         assert window.stack.currentWidget() is window.command_center_panel
         window.close()
 
+    def test_main_window_can_launch_interactive_demo(self, qapp):
+        """MainWindow should expose the fictional interactive demo overlay."""
+        from gui.main_window import MainWindow
+
+        window = MainWindow(config=None, paths=None)
+        window.show()
+        qapp.processEvents()
+
+        window._run_interactive_demo()
+        qapp.processEvents()
+
+        assert window.demo_controller is not None
+        assert window.demo_controller.overlay.isVisible()
+        assert window.demo_controller.current_step() is not None
+        window.demo_controller.stop()
+        window.close()
+
     def test_build_run_failure_summary_prefers_validation_context(self, qapp):
         """MainWindow should convert validation failures into actionable text."""
         from gui.main_window import MainWindow
