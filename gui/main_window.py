@@ -660,7 +660,6 @@ class MainWindow(QMainWindow):
     def _init_engine(self):
         """Initialize the orchestration engine."""
         if not self.config or not self.paths:
-            self.logger.warning("Cannot initialize engine: config or paths is None")
             return
 
         try:

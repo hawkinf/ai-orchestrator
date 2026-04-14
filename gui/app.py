@@ -1,6 +1,7 @@
 """Main GUI application entry point."""
 
 import logging
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -17,16 +18,16 @@ from gui.settings_store import SettingsStore
 
 # Setup logging
 def setup_logging(log_dir: Path = None) -> logging.Logger:
-    """Setup application logging to console and file."""
+    """Setup application logging, keeping console silent by default."""
     logger = logging.getLogger("ai_orchestrator")
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
 
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
 
-    # Console output is useful in development, but should stay silent in the
-    # packaged desktop app to avoid user-facing terminal noise.
-    if not getattr(sys, "frozen", False):
+    enable_console = os.getenv("AI_ORCHESTRATOR_CONSOLE_LOG", "").strip() == "1"
+    if enable_console:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_format = logging.Formatter(
@@ -51,6 +52,9 @@ def setup_logging(log_dir: Path = None) -> logging.Logger:
             logger.info(f"Logging to file: {log_file}")
         except Exception as e:
             logger.warning(f"Could not setup file logging: {e}")
+
+    if not logger.handlers:
+        logger.addHandler(logging.NullHandler())
 
     return logger
 
@@ -251,7 +255,7 @@ def main():
     try:
         sys.exit(run_gui())
     except Exception as e:
-        if not getattr(sys, "frozen", False):
+        if os.getenv("AI_ORCHESTRATOR_CONSOLE_LOG", "").strip() == "1":
             print(f"FATAL ERROR: {e}")
             traceback.print_exc()
         sys.exit(1)
