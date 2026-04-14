@@ -8,6 +8,9 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
+
+from orchestrator.version import get_version_info
 
 
 # Setup logging
@@ -89,8 +92,12 @@ def run_gui():
         )
 
         app = QApplication(sys.argv)
-        app.setApplicationName("AI Orchestrator")
+        version_info = get_version_info()
+        app.setApplicationName(version_info.app_name)
         app.setOrganizationName("Hawk Informatica")
+        icon_path = Path(__file__).parent.parent / "assets" / "icon.ico"
+        if icon_path.exists():
+            app.setWindowIcon(QIcon(str(icon_path)))
 
         # Load configuration
         config = None

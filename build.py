@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build script for AI Orchestrator desktop application."""
+"""Build, release and installer pipeline for AI Orchestrator."""
 
 import argparse
 import json
@@ -8,6 +8,9 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+from orchestrator.updater import UpdateConfig
+from orchestrator.version import ReleaseChannel, get_recent_changelog_markdown, get_version_manager
 
 ROOT_PATH = Path(__file__).parent
 
@@ -18,17 +21,50 @@ def get_version_info_path() -> Path:
 
 
 def get_version() -> str:
-    """Get current version from version.json."""
-    version_file = ROOT_PATH / "version.json"
-    if version_file.exists():
-        with open(version_file, encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("version", "0.1.0")
-    return "0.1.0"
+    """Get current version from the single source of truth."""
+    return get_version_manager(ROOT_PATH).version_string
 
 
-def update_version_info():
-    """Update version_info.txt with current version."""
+def get_build_logs_dir() -> Path:
+    """Return the directory used for build logs."""
+    logs_dir = ROOT_PATH / "dist" / "build-logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir
+
+
+def get_release_dir(version: str) -> Path:
+    """Return the release artifacts directory inside dist/."""
+    release_dir = ROOT_PATH / "dist" / "releases" / f"v{version}"
+    release_dir.mkdir(parents=True, exist_ok=True)
+    return release_dir
+
+
+def get_git_commit_hash() -> str | None:
+    """Return the current git commit hash if available."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=ROOT_PATH,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
+
+
+def sync_version_metadata(channel: ReleaseChannel | None = None) -> None:
+    """Update version.json metadata before a build."""
+    manager = get_version_manager(ROOT_PATH)
+    info = manager.info
+    info.build_date = datetime.now().isoformat(timespec="seconds")
+    info.commit_hash = get_git_commit_hash()
+    if channel is not None:
+        info.channel = channel
+    manager.save(info)
+
+
+def update_version_info() -> None:
+    """Update version_info.txt with current version metadata."""
     version = get_version()
     parts = version.split(".")
     major = int(parts[0]) if len(parts) > 0 else 0
@@ -54,7 +90,7 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'Hawk Informatica'),
-            StringStruct('FileDescription', 'AI Orchestrator - Local Development Assistant'),
+            StringStruct('FileDescription', 'AI Orchestrator - Desktop Product Release'),
             StringStruct('FileVersion', '{version}'),
             StringStruct('InternalName', 'AIOrchestrator'),
             StringStruct('LegalCopyright', '(c) {datetime.now().year} Hawk Informatica. All rights reserved.'),
@@ -69,9 +105,7 @@ VSVersionInfo(
   ]
 )
 '''
-    with open(get_version_info_path(), "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
-
+    get_version_info_path().write_text(content, encoding="utf-8", newline="\n")
     print(f"Updated version_info.txt to version {version}")
 
 
@@ -132,6 +166,8 @@ def validate_spec_file(spec_file: Path) -> str:
 
     required_paths = [
         ROOT_PATH / "version.json",
+        ROOT_PATH / "update_config.json",
+        ROOT_PATH / "CHANGELOG.md",
         ROOT_PATH / "config.yaml",
         ROOT_PATH / "prompts",
     ]
@@ -183,13 +219,49 @@ def build_pyinstaller_command(target: Path, debug: bool = False, onefile: bool =
         "--name=AIOrchestrator",
         "--windowed",
         f"--add-data={ROOT_PATH / 'version.json'};.",
+        f"--add-data={ROOT_PATH / 'update_config.json'};.",
+        f"--add-data={ROOT_PATH / 'CHANGELOG.md'};.",
         f"--version-file={get_version_info_path()}",
         str(target),
     ])
     return cmd, build_mode
 
 
-def clean():
+def run_logged_command(cmd: list[str], log_prefix: str) -> subprocess.CompletedProcess[str]:
+    """Run a command and persist stdout/stderr into dist/build-logs/."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = get_build_logs_dir() / f"{log_prefix}_{timestamp}.log"
+    result = subprocess.run(
+        cmd,
+        cwd=ROOT_PATH,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    log_path.write_text(
+        "\n".join(
+            [
+                f"Command: {format_command(cmd)}",
+                "",
+                "STDOUT:",
+                result.stdout,
+                "",
+                "STDERR:",
+                result.stderr,
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(f"Log file: {log_path}")
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
+    return result
+
+
+def clean() -> None:
     """Clean build artifacts."""
     dirs_to_clean = ["build", "dist", "__pycache__"]
     files_to_clean = ["*.pyc", "*.pyo", "*.spec.bak"]
@@ -208,12 +280,12 @@ def clean():
     print("Clean complete!")
 
 
-def build_exe(debug: bool = False, onefile: bool = True, target: str | None = None):
+def build_exe(debug: bool = False, onefile: bool = True, target: str | None = None) -> None:
     """Build the executable using PyInstaller."""
     version = get_version()
     print(f"Building AI Orchestrator v{version}...")
 
-    # Update version info
+    sync_version_metadata(ReleaseChannel.DEV if debug else None)
     update_version_info()
 
     resolved_target = resolve_build_target(target)
@@ -226,21 +298,93 @@ def build_exe(debug: bool = False, onefile: bool = True, target: str | None = No
         print(f"Spec file: {resolved_target}")
         if not onefile:
             print("Note: --onedir was requested, but packaging mode is controlled by the spec file and CLI mode flags were skipped.")
-    print(f"Running: {format_command(cmd)}")
-    result = subprocess.run(cmd, cwd=ROOT_PATH)
 
+    result = run_logged_command(cmd, "build")
     if result.returncode == 0:
         print("\nBuild successful!")
         if build_mode == "onedir":
             print(f"Bundle directory: {ROOT_PATH / 'dist' / 'AIOrchestrator'}")
         else:
             print(f"Executable: {ROOT_PATH / 'dist' / 'AIOrchestrator.exe'}")
-    else:
-        print("\nBuild failed!")
-        sys.exit(1)
+        return
+
+    print("\nBuild failed!")
+    sys.exit(1)
 
 
-def run_tests():
+def build_dev() -> None:
+    """Run a development desktop build."""
+    print("Running development build...")
+    build_exe(debug=True, onefile=False, target="main.py")
+
+
+def build_release() -> None:
+    """Run the release desktop build."""
+    print("Running release build...")
+    sync_version_metadata(ReleaseChannel.STABLE)
+    build_exe(debug=False, onefile=True, target=None)
+
+
+def render_installer_script(version: str) -> Path:
+    """Render the Inno Setup script with current metadata."""
+    template_path = ROOT_PATH / "installer" / "windows_setup.iss"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Installer template not found: {template_path}")
+
+    output_dir = ROOT_PATH / "dist" / "installer"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    script_path = output_dir / "AIOrchestrator.iss"
+    replacements = {
+        "__APP_VERSION__": version,
+        "__APP_EXE__": str((ROOT_PATH / "dist" / "AIOrchestrator.exe").resolve()).replace("\\", "\\\\"),
+        "__APP_ICON__": str((ROOT_PATH / "assets" / "icon.ico").resolve()).replace("\\", "\\\\"),
+        "__OUTPUT_DIR__": str(output_dir.resolve()).replace("\\", "\\\\"),
+        "__SOURCE_ROOT__": str(ROOT_PATH.resolve()).replace("\\", "\\\\"),
+        "__BUILD_COMMIT__": get_git_commit_hash() or "unknown",
+    }
+
+    content = template_path.read_text(encoding="utf-8")
+    for marker, value in replacements.items():
+        content = content.replace(marker, value)
+    script_path.write_text(content, encoding="utf-8")
+    print(f"Installer script generated: {script_path}")
+    return script_path
+
+
+def locate_iscc() -> str | None:
+    """Locate the Inno Setup compiler."""
+    candidates = [
+        shutil.which("ISCC"),
+        shutil.which("ISCC.exe"),
+        r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+        r"C:\Program Files\Inno Setup 6\ISCC.exe",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+    return None
+
+
+def build_installer() -> Path:
+    """Build the Windows installer when Inno Setup is available."""
+    version = get_version()
+    exe_path = ROOT_PATH / "dist" / "AIOrchestrator.exe"
+    if not exe_path.exists():
+        raise FileNotFoundError(f"Executable not found for installer build: {exe_path}")
+
+    script_path = render_installer_script(version)
+    iscc = locate_iscc()
+    if not iscc:
+        print("Inno Setup compiler not found. Installer script generated but not compiled.")
+        return script_path
+
+    result = run_logged_command([iscc, str(script_path)], "installer")
+    if result.returncode != 0:
+        raise RuntimeError("Installer compilation failed")
+    return script_path
+
+
+def run_tests() -> bool:
     """Run the test suite."""
     print("Running tests...")
     result = subprocess.run(
@@ -250,11 +394,9 @@ def run_tests():
     return result.returncode == 0
 
 
-def lint():
+def lint() -> bool:
     """Run linting checks."""
     print("Running linting...")
-
-    # Run ruff if available
     result = subprocess.run(
         [sys.executable, "-m", "ruff", "check", "."],
         cwd=ROOT_PATH,
@@ -265,38 +407,58 @@ def lint():
     if result.returncode == 0:
         print("Linting passed!")
         return True
-    else:
-        print("Linting issues found:")
-        print(result.stdout)
-        return False
+
+    print("Linting issues found:")
+    print(result.stdout)
+    return False
 
 
-def create_release(tag: str):
-    """Create a release package."""
+def create_release(tag: str) -> None:
+    """Create release artifacts in dist/releases/."""
     version = get_version()
-    release_dir = ROOT_PATH / "releases" / f"v{version}"
-    release_dir.mkdir(parents=True, exist_ok=True)
+    release_dir = get_release_dir(version)
 
-    # Copy executable
-    exe_path = ROOT_PATH / "dist" / "AIOrchestrator.exe"
-    if exe_path.exists():
-        shutil.copy(exe_path, release_dir / f"AIOrchestrator-{version}-win64.exe")
+    portable_exe = ROOT_PATH / "dist" / "AIOrchestrator.exe"
+    if portable_exe.exists():
+        shutil.copy(portable_exe, release_dir / f"AIOrchestrator-{version}-win64.exe")
 
-    # Create release notes template
-    notes_file = release_dir / "RELEASE_NOTES.md"
-    with open(notes_file, "w") as f:
-        f.write(f"""# AI Orchestrator v{version}
+    installer_exe = ROOT_PATH / "dist" / "installer" / f"AI-Orchestrator-Setup-{version}.exe"
+    if installer_exe.exists():
+        shutil.copy(installer_exe, release_dir / installer_exe.name)
+
+    for filename in ["CHANGELOG.md", "README.md", "update_config.json", "version.json"]:
+        source = ROOT_PATH / filename
+        if source.exists():
+            shutil.copy(source, release_dir / source.name)
+
+    manifest = {
+        "version": version,
+        "tag": tag or f"v{version}",
+        "build_date": datetime.now().isoformat(timespec="seconds"),
+        "commit_hash": get_git_commit_hash(),
+        "release_url": UpdateConfig.load(ROOT_PATH).release_url,
+        "artifacts": sorted(path.name for path in release_dir.iterdir()),
+    }
+    (release_dir / "release_manifest.json").write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
+
+    notes = f"""# AI Orchestrator v{version}
 
 ## Release Date
 {datetime.now().strftime("%Y-%m-%d")}
 
 ## Changes
-- [Add changes here]
+{get_recent_changelog_markdown(ROOT_PATH, max_entries=1)}
 
 ## Installation
-1. Download `AIOrchestrator-{version}-win64.exe`
-2. Run the executable
-3. Follow the setup wizard
+1. Download `AI-Orchestrator-Setup-{version}.exe`
+2. Run the installer
+3. Open AI Orchestrator from the Start Menu or desktop shortcut
+
+## Portable Artifact
+- `AIOrchestrator-{version}-win64.exe`
 
 ## Requirements
 - Windows 10/11 (64-bit)
@@ -306,41 +468,36 @@ def create_release(tag: str):
 ```
 SHA256: [Calculate and add]
 ```
-""")
-
+"""
+    (release_dir / "RELEASE_NOTES.md").write_text(notes, encoding="utf-8")
     print(f"Release package created: {release_dir}")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="AI Orchestrator Build Script")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
-    # Clean command
     subparsers.add_parser("clean", help="Clean build artifacts")
 
-    # Build command
     build_parser = subparsers.add_parser("build", help="Build executable")
     build_parser.add_argument("--debug", action="store_true", help="Debug build")
     build_parser.add_argument("--onedir", action="store_true", help="Build as directory instead of single file")
     build_parser.add_argument("--target", help="PyInstaller target (.spec or .py). Defaults to ai_orchestrator.spec when present")
 
-    # Test command
+    subparsers.add_parser("build-dev", help="Run a development desktop build")
+    subparsers.add_parser("build-release", help="Run the release desktop build")
+    subparsers.add_parser("installer", help="Generate the Windows installer")
     subparsers.add_parser("test", help="Run tests")
-
-    # Lint command
     subparsers.add_parser("lint", help="Run linting")
 
-    # Release command
     release_parser = subparsers.add_parser("release", help="Create release package")
     release_parser.add_argument("--tag", default="", help="Git tag for release")
 
-    # Version command
     version_parser = subparsers.add_parser("version", help="Version operations")
     version_parser.add_argument("--bump", choices=["major", "minor", "patch"], help="Bump version")
     version_parser.add_argument("--set", dest="set_version", help="Set specific version")
 
-    # All command (test + lint + build)
     subparsers.add_parser("all", help="Run tests, lint, and build")
 
     args = parser.parse_args()
@@ -349,6 +506,16 @@ def main():
         clean()
     elif args.command == "build":
         build_exe(debug=args.debug, onefile=not args.onedir, target=args.target)
+    elif args.command == "build-dev":
+        build_dev()
+    elif args.command == "build-release":
+        build_release()
+    elif args.command == "installer":
+        try:
+            build_installer()
+        except Exception as exc:
+            print(exc)
+            sys.exit(1)
     elif args.command == "test":
         if not run_tests():
             sys.exit(1)
@@ -356,17 +523,18 @@ def main():
         if not lint():
             sys.exit(1)
     elif args.command == "release":
-        build_exe()
+        build_release()
+        try:
+            build_installer()
+        except Exception as exc:
+            print(f"Installer step skipped or failed: {exc}")
         create_release(args.tag)
     elif args.command == "version":
+        manager = get_version_manager(ROOT_PATH)
         if args.bump:
-            from orchestrator.version import get_version_manager
-            manager = get_version_manager(ROOT_PATH)
             new_version = manager.bump(args.bump)
             print(f"Version bumped to: {new_version}")
         elif args.set_version:
-            from orchestrator.version import get_version_manager
-            manager = get_version_manager(ROOT_PATH)
             new_version = manager.set_version(args.set_version)
             print(f"Version set to: {new_version}")
         else:
@@ -377,7 +545,7 @@ def main():
             sys.exit(1)
         if not lint():
             print("Linting failed, continuing with build...")
-        build_exe()
+        build_release()
     else:
         parser.print_help()
 

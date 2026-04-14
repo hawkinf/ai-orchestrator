@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(0, 1, 0, 0),
-    prodvers=(0, 1, 0, 0),
+    filevers=(0, 2, 0, 0),
+    prodvers=(0, 2, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -17,13 +17,13 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'Hawk Informatica'),
-            StringStruct('FileDescription', 'AI Orchestrator - Local Development Assistant'),
-            StringStruct('FileVersion', '0.1.0'),
+            StringStruct('FileDescription', 'AI Orchestrator - Desktop Product Release'),
+            StringStruct('FileVersion', '0.2.0'),
             StringStruct('InternalName', 'AIOrchestrator'),
             StringStruct('LegalCopyright', '(c) 2026 Hawk Informatica. All rights reserved.'),
             StringStruct('OriginalFilename', 'AIOrchestrator.exe'),
             StringStruct('ProductName', 'AI Orchestrator'),
-            StringStruct('ProductVersion', '0.1.0'),
+            StringStruct('ProductVersion', '0.2.0'),
           ]
         )
       ]

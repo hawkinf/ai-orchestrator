@@ -16,6 +16,9 @@ ROOT_PATH = Path(SPECPATH)
 datas = [
     # Version file - required for app version display
     (str(ROOT_PATH / "version.json"), "."),
+    # Update config and changelog - required for product release UX
+    (str(ROOT_PATH / "update_config.json"), "."),
+    (str(ROOT_PATH / "CHANGELOG.md"), "."),
     # Configuration file - required for app settings
     (str(ROOT_PATH / "config.yaml"), "."),
     # Prompt templates - required for LLM interactions

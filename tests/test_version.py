@@ -10,6 +10,8 @@ from orchestrator.version import (
     VersionInfo,
     VersionManager,
     ReleaseChannel,
+    load_changelog,
+    get_recent_changelog_markdown,
     get_version_manager,
     get_version,
     get_version_info,
@@ -117,6 +119,12 @@ class TestVersion:
         v2 = Version(1, 0, 0, prerelease="beta")
         assert v1 < v2
 
+    def test_version_prerelease_numeric_comparison(self):
+        """Test semver prerelease numeric comparison."""
+        v1 = Version.parse("1.0.0-alpha.2")
+        v2 = Version.parse("1.0.0-alpha.10")
+        assert v1 < v2
+
     def test_version_greater_than(self):
         """Test version greater than."""
         v1 = Version(2, 0, 0)
@@ -217,6 +225,13 @@ class TestVersionInfo:
         assert info.version == Version(0, 1, 0)
         assert info.channel == ReleaseChannel.STABLE
         assert info.app_name == "AI Orchestrator"
+
+    def test_version_info_from_dict_uses_version_string(self):
+        """Test creating from dict using semantic version string."""
+        info = VersionInfo.from_dict({"version": "2.3.4-beta.1", "channel": "beta"})
+
+        assert info.version == Version(2, 3, 4, prerelease="beta.1")
+        assert info.channel == ReleaseChannel.BETA
 
 
 class TestVersionManager:
@@ -339,6 +354,41 @@ class TestReleaseChannel:
         assert ReleaseChannel.BETA.value == "beta"
         assert ReleaseChannel.ALPHA.value == "alpha"
         assert ReleaseChannel.DEV.value == "dev"
+
+
+class TestChangelog:
+    """Tests for changelog parsing helpers."""
+
+    def test_load_changelog_entries(self, tmp_path):
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text(
+            "# Changelog\n\n"
+            "## [0.2.0] - 2026-04-14\n"
+            "- Release polish\n\n"
+            "## [0.1.0] - 2026-04-13\n"
+            "- Initial release\n",
+            encoding="utf-8",
+        )
+
+        entries = load_changelog(tmp_path)
+
+        assert len(entries) == 2
+        assert entries[0].version == "0.2.0"
+        assert "Release polish" in entries[0].content
+
+    def test_get_recent_changelog_markdown(self, tmp_path):
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text(
+            "# Changelog\n\n"
+            "## [0.2.0] - 2026-04-14\n"
+            "- Release polish\n",
+            encoding="utf-8",
+        )
+
+        content = get_recent_changelog_markdown(tmp_path, max_entries=1)
+
+        assert "0.2.0" in content
+        assert "Release polish" in content
 
 
 class TestGlobalFunctions:

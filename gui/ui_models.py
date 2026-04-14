@@ -194,3 +194,8 @@ class UIPreferences:
     # Recent items
     recent_projects: List[str] = field(default_factory=list)
     recent_tasks: List[str] = field(default_factory=list)
+
+    # Updates
+    auto_check_updates: bool = True
+    update_channel: str = "stable"
+    release_url: str = "https://github.com/hawkinf/ai-orchestrator/releases"

@@ -25,6 +25,8 @@ class HelpPanel(QWidget):
     """Main help panel with embedded manual and contextual navigation."""
 
     help_link_requested = Signal(str)
+    about_requested = Signal()
+    updates_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,6 +59,14 @@ class HelpPanel(QWidget):
         self.copy_btn = QPushButton("Copiar instruções")
         self.copy_btn.clicked.connect(self._copy_current_section)
         actions.addWidget(self.copy_btn)
+
+        self.about_btn = QPushButton("Sobre")
+        self.about_btn.clicked.connect(self.about_requested.emit)
+        actions.addWidget(self.about_btn)
+
+        self.updates_btn = QPushButton("Atualizações")
+        self.updates_btn.clicked.connect(self.updates_requested.emit)
+        actions.addWidget(self.updates_btn)
         layout.addLayout(actions)
 
         splitter = QSplitter()

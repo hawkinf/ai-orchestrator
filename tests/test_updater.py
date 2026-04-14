@@ -172,11 +172,13 @@ class TestUpdateConfig:
         """Test default configuration."""
         config = UpdateConfig()
 
-        assert config.github_owner == "hawk-ai"
+        assert config.github_owner == "hawkinf"
         assert config.github_repo == "ai-orchestrator"
         assert config.check_interval_hours == 24
+        assert config.auto_check_on_startup is True
         assert config.auto_download is False
         assert config.include_prereleases is False
+        assert config.release_url.endswith("/releases")
 
     def test_custom_config(self):
         """Test custom configuration."""
@@ -185,10 +187,29 @@ class TestUpdateConfig:
             github_repo="my-app",
             check_interval_hours=12,
             auto_download=True,
+            release_url="https://example.com/releases",
         )
 
         assert config.github_owner == "my-org"
         assert config.check_interval_hours == 12
+        assert config.release_url == "https://example.com/releases"
+
+    def test_load_config_from_file(self, tmp_path):
+        """Test loading updater config from update_config.json."""
+        (tmp_path / "update_config.json").write_text(json.dumps({
+            "github_owner": "custom-owner",
+            "github_repo": "custom-repo",
+            "channel": "beta",
+            "auto_check_on_startup": False,
+            "release_url": "https://example.com/custom-releases"
+        }))
+
+        config = UpdateConfig.load(tmp_path)
+
+        assert config.github_owner == "custom-owner"
+        assert config.github_repo == "custom-repo"
+        assert config.channel.value == "beta"
+        assert config.auto_check_on_startup is False
 
 
 class TestUpdater:
@@ -306,6 +327,41 @@ class TestUpdater:
 
         assert asset is not None
         assert asset.name == "ai-orchestrator-1.0.0-win64.exe"
+
+    def test_find_asset_prefers_installer(self, tmp_path):
+        """Test preferring installer artifact when available."""
+        updater = Updater(root_path=tmp_path)
+
+        release = ReleaseInfo(
+            tag_name="v1.0.0",
+            name="",
+            body="",
+            published_at="",
+            prerelease=False,
+            draft=False,
+            html_url="",
+            assets=[
+                ReleaseAsset(
+                    name="ai-orchestrator-1.0.0-win64.exe",
+                    download_url="",
+                    size=50000000,
+                    content_type="",
+                    browser_download_url="https://example.com/portable",
+                ),
+                ReleaseAsset(
+                    name="AI-Orchestrator-Setup-1.0.0.exe",
+                    download_url="",
+                    size=55000000,
+                    content_type="",
+                    browser_download_url="https://example.com/installer",
+                ),
+            ],
+        )
+
+        asset = updater.find_asset(release)
+
+        assert asset is not None
+        assert asset.name == "AI-Orchestrator-Setup-1.0.0.exe"
 
     def test_find_asset_fallback(self, tmp_path):
         """Test finding asset with fallback pattern."""
@@ -501,6 +557,13 @@ class TestUpdater:
 
         assert result.status == UpdateStatus.CHECK_FAILED
         assert "not found" in result.error_message.lower()
+
+    def test_installer_asset_detection(self, tmp_path):
+        """Test detecting installer-like downloads."""
+        updater = Updater(root_path=tmp_path)
+
+        assert updater._is_installer_asset(tmp_path / "AI-Orchestrator-Setup-1.0.0.exe") is True
+        assert updater._is_installer_asset(tmp_path / "AIOrchestrator.exe") is False
 
 
 class TestUpdateError:

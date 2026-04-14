@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import traceback
+from functools import partial
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -16,12 +17,15 @@ from PySide6.QtWidgets import (
     QProgressBar, QApplication,
 )
 from PySide6.QtCore import Qt, QTimer, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QIcon
 
 from orchestrator.config import OrchestratorConfig, load_config
 from orchestrator.recommended_actions import ActionTarget, RecommendedAction
 from orchestrator.setup_validator import SetupValidationResult, SetupValidator
+from orchestrator.updater import ReleaseInfo, UpdateConfig, UpdateResult, UpdateStatus, get_updater
+from orchestrator.version import ReleaseChannel, get_recent_changelog_markdown, get_version_info
 
+from .about_dialog import AboutDialog
 from .mode_manager import InterfaceModeManager, MODE_SIMPLE
 from .onboarding_wizard import OnboardingWizard
 from .first_task_wizard import FirstTaskWizard, FirstRunCompletionDialog
@@ -32,6 +36,7 @@ from .ui_models import (
 )
 from .settings_store import SettingsStore, config_to_settings
 from .task_panel import TaskPanel
+from .update_dialog import UpdateDialog, UpdateTaskThread
 from .run_panel import RunPanel
 from .config_panel import ConfigPanel
 from .log_viewer import LogViewer
@@ -50,11 +55,13 @@ from .command_center_panel import CommandCenterPanel
 class Sidebar(QFrame):
     """Sidebar navigation widget - Modern compact design."""
 
-    def __init__(self, parent=None):
+    def __init__(self, app_name: str, version_text: str, parent=None):
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setFixedWidth(184)
         self._buttons = {}
+        self._app_name = app_name
+        self._version_text = version_text
         self._setup_ui()
 
     def _setup_ui(self):
@@ -63,7 +70,7 @@ class Sidebar(QFrame):
         layout.setSpacing(2)
         layout.setContentsMargins(8, 12, 8, 12)
 
-        title = QLabel("AI Orchestrator")
+        title = QLabel(self._app_name)
         title.setStyleSheet("""
             color: #e6edf3;
             font-size: 14px;
@@ -116,9 +123,9 @@ class Sidebar(QFrame):
         layout.addStretch()
 
         # Version - subtle
-        version_label = QLabel("v0.1.0")
-        version_label.setStyleSheet("color: #4b5563; font-size: 11px; padding: 6px 8px;")
-        layout.addWidget(version_label)
+        self.version_label = QLabel(self._version_text)
+        self.version_label.setStyleSheet("color: #4b5563; font-size: 11px; padding: 6px 8px;")
+        layout.addWidget(self.version_label)
 
     def _add_section_label(self, layout, text: str):
         """Add a section label."""
@@ -254,6 +261,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.logger = logging.getLogger("ai_orchestrator.gui")
+        self.version_info = get_version_info()
+        self.app_root = Path(__file__).resolve().parent.parent
         self.config = config
         self.paths = paths
         self.engine = None
@@ -265,6 +274,7 @@ class MainWindow(QMainWindow):
         self._project_path: Optional[Path] = None
         self._config_path: Optional[Path] = None
         self._interface_mode = MODE_SIMPLE
+        self._update_thread: Optional[UpdateTaskThread] = None
 
         self.logger.info("Initializing MainWindow...")
 
@@ -281,9 +291,12 @@ class MainWindow(QMainWindow):
 
     def _setup_window(self):
         """Setup window properties."""
-        self.setWindowTitle("AI Orchestrator")
+        self.setWindowTitle(f"{self.version_info.app_name} v{self.version_info.version}")
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
+        icon_path = self.app_root / "assets" / "icon.ico"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         # Load preferences
         if self.paths:
@@ -308,7 +321,8 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Sidebar
-        self.sidebar = Sidebar()
+        sidebar_version = f"v{self.version_info.version}"
+        self.sidebar = Sidebar(self.version_info.app_name, sidebar_version)
         main_layout.addWidget(self.sidebar)
 
         # Content area
@@ -416,6 +430,8 @@ class MainWindow(QMainWindow):
         # Diagnostics panel
         self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
         self.diagnostics_panel.open_logs.connect(self._open_logs_folder)
+        self.help_panel.about_requested.connect(self._open_about_dialog)
+        self.help_panel.updates_requested.connect(self._open_update_dialog)
 
         # Dashboard panel
         self.dashboard_panel.run_selected.connect(self._on_dashboard_run_selected)
@@ -489,6 +505,127 @@ class MainWindow(QMainWindow):
                 self._navigate(last_tab)
 
         QTimer.singleShot(0, self._maybe_run_onboarding)
+        QTimer.singleShot(1200, self._maybe_check_for_updates)
+
+    def _build_update_config(self) -> UpdateConfig:
+        """Build the effective update configuration using defaults plus user prefs."""
+        base = UpdateConfig.load(self.app_root)
+        if not self.settings_store:
+            return base
+
+        prefs = self.settings_store.load_preferences()
+        try:
+            channel = ReleaseChannel(prefs.update_channel)
+        except ValueError:
+            channel = base.channel
+
+        base.auto_check_on_startup = prefs.auto_check_updates
+        base.channel = channel
+        base.include_prereleases = channel != ReleaseChannel.STABLE
+        base.release_url = prefs.release_url or base.release_url
+        return base
+
+    def _save_update_preferences(self, auto_check_updates: bool, update_channel: str, release_url: str):
+        """Persist update preferences without opening settings."""
+        if self.settings_store:
+            self.settings_store.update_update_preferences(auto_check_updates, update_channel, release_url)
+
+    def _open_about_dialog(self):
+        """Open the product about dialog."""
+        prefs = self.settings_store.load_preferences() if self.settings_store else None
+        config = self._build_update_config()
+        dialog = AboutDialog(
+            version_info=self.version_info,
+            release_url=config.release_url,
+            changelog_markdown=get_recent_changelog_markdown(self.app_root, max_entries=2),
+            auto_check_updates=prefs.auto_check_updates if prefs else config.auto_check_on_startup,
+            update_channel=prefs.update_channel if prefs else config.channel.value,
+            parent=self,
+        )
+        dialog.preferences_changed.connect(self._save_update_preferences)
+        dialog.check_updates_requested.connect(self._open_update_dialog)
+        dialog.exec()
+
+    def _open_update_dialog(self, initial_result: Optional[UpdateResult] = None):
+        """Open the update dialog and optionally seed it with a known result."""
+        prefs = self.settings_store.load_preferences() if self.settings_store else None
+        config = self._build_update_config()
+        dialog = UpdateDialog(
+            current_version=str(self.version_info.version),
+            release_url=config.release_url,
+            auto_check_updates=prefs.auto_check_updates if prefs else config.auto_check_on_startup,
+            parent=self,
+        )
+        dialog.preferences_changed.connect(
+            lambda checked: self._save_update_preferences(checked, config.channel.value, config.release_url)
+        )
+        dialog.check_requested.connect(partial(self._start_update_check, dialog, False))
+        dialog.update_requested.connect(lambda release: self._start_update_install(dialog, release))
+        if initial_result is not None:
+            dialog.present_result(initial_result)
+        else:
+            self._start_update_check(dialog, False)
+        dialog.exec()
+
+    def _maybe_check_for_updates(self):
+        """Run a silent update check on startup when enabled."""
+        config = self._build_update_config()
+        if not config.auto_check_on_startup:
+            return
+
+        updater = get_updater(config=config, root_path=self.app_root)
+        if not updater.should_check_for_updates():
+            return
+
+        self._start_update_check(None, True)
+
+    def _start_update_check(self, dialog: Optional[UpdateDialog], silent: bool):
+        """Check for updates in the background."""
+        if self._update_thread and self._update_thread.isRunning():
+            return
+
+        if dialog is not None:
+            dialog.set_checking()
+
+        updater = get_updater(config=self._build_update_config(), root_path=self.app_root)
+        self._update_thread = UpdateTaskThread(updater, mode="check", parent=self)
+        self._update_thread.progress_changed.connect(self._on_update_progress)
+        self._update_thread.result_ready.connect(lambda result: self._finish_update_check(result, dialog, silent))
+        self._update_thread.start()
+
+    def _start_update_install(self, dialog: UpdateDialog, release: ReleaseInfo):
+        """Download and prepare an update installation."""
+        if self._update_thread and self._update_thread.isRunning():
+            return
+
+        dialog.set_progress(0.0, "Preparando download...")
+        updater = get_updater(config=self._build_update_config(), root_path=self.app_root)
+        self._update_thread = UpdateTaskThread(updater, mode="install", release=release, parent=self)
+        self._update_thread.progress_changed.connect(lambda progress, message: dialog.set_progress(progress, message))
+        self._update_thread.result_ready.connect(lambda result: self._finish_update_install(result, dialog))
+        self._update_thread.start()
+
+    @Slot(float, str)
+    def _on_update_progress(self, progress: float, message: str):
+        """Mirror startup update progress to logs only."""
+        self.logger.debug("Update progress %.2f: %s", progress, message)
+
+    def _finish_update_check(self, result: UpdateResult, dialog: Optional[UpdateDialog], silent: bool):
+        """Handle update check completion."""
+        self._update_thread = None
+        if dialog is not None:
+            dialog.present_result(result)
+            return
+
+        if silent and result.status == UpdateStatus.UPDATE_AVAILABLE:
+            self._open_update_dialog(result)
+
+    def _finish_update_install(self, result: UpdateResult, dialog: UpdateDialog):
+        """Handle update install preparation completion."""
+        self._update_thread = None
+        should_restart = dialog.present_install_result(result)
+        if should_restart:
+            get_updater(config=self._build_update_config(), root_path=self.app_root).apply_update_and_restart()
 
     def _init_engine(self):
         """Initialize the orchestration engine."""

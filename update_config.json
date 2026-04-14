@@ -1,0 +1,15 @@
+{
+  "github_owner": "hawkinf",
+  "github_repo": "ai-orchestrator",
+  "check_interval_hours": 24,
+  "auto_check_on_startup": true,
+  "auto_download": false,
+  "auto_install": false,
+  "include_prereleases": false,
+  "channel": "stable",
+  "release_url": "https://github.com/hawkinf/ai-orchestrator/releases",
+  "releases_api_url": "https://api.github.com/repos/hawkinf/ai-orchestrator/releases",
+  "installer_asset_pattern": "AI-Orchestrator-Setup-{version}.exe",
+  "asset_pattern": "AIOrchestrator-{version}-win64.exe",
+  "timeout_seconds": 30
+}

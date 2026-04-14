@@ -2,7 +2,7 @@
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -16,6 +16,20 @@ class ReleaseChannel(Enum):
     BETA = "beta"
     ALPHA = "alpha"
     DEV = "dev"
+
+
+DEFAULT_APP_NAME = "AI Orchestrator"
+DEFAULT_AUTHOR = "Hawk Informatica"
+
+
+@dataclass(frozen=True)
+class ChangelogEntry:
+    """Single changelog entry parsed from CHANGELOG.md."""
+
+    version: str
+    title: str
+    date: Optional[str]
+    content: str
 
 
 @dataclass
@@ -55,7 +69,7 @@ class Version:
         if not self.prerelease and other.prerelease:
             return False
         if self.prerelease and other.prerelease:
-            return self.prerelease < other.prerelease
+            return _compare_prerelease(self.prerelease, other.prerelease) < 0
 
         return False
 
@@ -146,8 +160,8 @@ class VersionInfo:
     channel: ReleaseChannel = ReleaseChannel.STABLE
     build_date: Optional[str] = None
     commit_hash: Optional[str] = None
-    app_name: str = "AI Orchestrator"
-    author: str = "Hawk Informatica"
+    app_name: str = DEFAULT_APP_NAME
+    author: str = DEFAULT_AUTHOR
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -168,13 +182,26 @@ class VersionInfo:
     @classmethod
     def from_dict(cls, data: dict) -> "VersionInfo":
         """Create from dictionary."""
-        version = Version(
-            major=data.get("major", 0),
-            minor=data.get("minor", 1),
-            patch=data.get("patch", 0),
-            prerelease=data.get("prerelease"),
-            build=data.get("build"),
-        )
+        version_value = data.get("version")
+        if isinstance(version_value, str):
+            try:
+                version = Version.parse(version_value)
+            except ValueError:
+                version = Version(
+                    major=data.get("major", 0),
+                    minor=data.get("minor", 1),
+                    patch=data.get("patch", 0),
+                    prerelease=data.get("prerelease"),
+                    build=data.get("build"),
+                )
+        else:
+            version = Version(
+                major=data.get("major", 0),
+                minor=data.get("minor", 1),
+                patch=data.get("patch", 0),
+                prerelease=data.get("prerelease"),
+                build=data.get("build"),
+            )
 
         channel_str = data.get("channel", "stable")
         try:
@@ -187,8 +214,8 @@ class VersionInfo:
             channel=channel,
             build_date=data.get("build_date"),
             commit_hash=data.get("commit_hash"),
-            app_name=data.get("app_name", "AI Orchestrator"),
-            author=data.get("author", "Hawk Informatica"),
+            app_name=data.get("app_name", DEFAULT_APP_NAME),
+            author=data.get("author", DEFAULT_AUTHOR),
         )
 
 
@@ -314,6 +341,84 @@ def get_version_info() -> VersionInfo:
     return get_version_manager().info
 
 
+def load_changelog(
+    root_path: Optional[Path] = None,
+    max_entries: Optional[int] = None,
+) -> list[ChangelogEntry]:
+    """Load and parse CHANGELOG.md entries."""
+    if root_path is None:
+        root_path = Path(__file__).parent.parent
+
+    changelog_path = Path(root_path) / "CHANGELOG.md"
+    if not changelog_path.exists():
+        return []
+
+    text = changelog_path.read_text(encoding="utf-8")
+    pattern = re.compile(
+        r"^##\s+(?:\[(?P<version_bracket>[^\]]+)\]|(?P<version_plain>[^\n-]+?))"
+        r"(?:\s+-\s+(?P<date>[^\n]+))?\n(?P<body>.*?)(?=^##\s+|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+    entries: list[ChangelogEntry] = []
+    for match in pattern.finditer(text):
+        version = (match.group("version_bracket") or match.group("version_plain") or "").strip()
+        body = match.group("body").strip()
+        entries.append(
+            ChangelogEntry(
+                version=version,
+                title=f"v{version}" if not version.startswith("v") else version,
+                date=(match.group("date") or "").strip() or None,
+                content=body,
+            )
+        )
+        if max_entries is not None and len(entries) >= max_entries:
+            break
+
+    return entries
+
+
+def get_recent_changelog_markdown(root_path: Optional[Path] = None, max_entries: int = 2) -> str:
+    """Return recent changelog entries as markdown text."""
+    entries = load_changelog(root_path=root_path, max_entries=max_entries)
+    if not entries:
+        return "Nenhum changelog disponivel."
+
+    sections = []
+    for entry in entries:
+        header = entry.title
+        if entry.date:
+            header = f"{header} - {entry.date}"
+        sections.append(f"{header}\n{entry.content}".strip())
+
+    return "\n\n".join(sections)
+
+
+def _compare_prerelease(left: str, right: str) -> int:
+    """Compare semantic prerelease identifiers."""
+    left_parts = left.split(".")
+    right_parts = right.split(".")
+
+    for left_part, right_part in zip(left_parts, right_parts):
+        if left_part == right_part:
+            continue
+
+        left_is_digit = left_part.isdigit()
+        right_is_digit = right_part.isdigit()
+
+        if left_is_digit and right_is_digit:
+            return -1 if int(left_part) < int(right_part) else 1
+        if left_is_digit and not right_is_digit:
+            return -1
+        if not left_is_digit and right_is_digit:
+            return 1
+        return -1 if left_part < right_part else 1
+
+    if len(left_parts) == len(right_parts):
+        return 0
+    return -1 if len(left_parts) < len(right_parts) else 1
+
+
 # Current version constants (for imports)
-__version__ = "0.1.0"
-__version_info__ = (0, 1, 0)
+__version__ = get_version()
+__version_info__ = get_version_manager().version.to_tuple()

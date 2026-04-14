@@ -2,11 +2,8 @@
 
 import hashlib
 import json
-import os
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,7 +13,7 @@ from typing import Optional, Callable, List, Dict, Any
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
-from .version import Version, VersionInfo, get_version_manager, ReleaseChannel
+from .version import Version, get_version_manager, ReleaseChannel
 
 
 class UpdateStatus(Enum):
@@ -105,15 +102,87 @@ class UpdateResult:
 class UpdateConfig:
     """Configuration for the updater."""
 
-    github_owner: str = "hawk-ai"
+    github_owner: str = "hawkinf"
     github_repo: str = "ai-orchestrator"
     check_interval_hours: int = 24
+    auto_check_on_startup: bool = True
     auto_download: bool = False
     auto_install: bool = False
     include_prereleases: bool = False
+    channel: ReleaseChannel = ReleaseChannel.STABLE
+    release_url: str = "https://github.com/hawkinf/ai-orchestrator/releases"
+    releases_api_url: Optional[str] = None
+    installer_asset_pattern: str = "AI-Orchestrator-Setup-{version}.exe"
     asset_pattern: str = "ai-orchestrator-{version}-win64.exe"
     cache_dir: Optional[Path] = None
     timeout_seconds: int = 30
+
+    @classmethod
+    def load(cls, root_path: Optional[Path] = None) -> "UpdateConfig":
+        """Load update config from update_config.json if present."""
+        if root_path is None:
+            root_path = Path(__file__).parent.parent
+
+        config_path = Path(root_path) / "update_config.json"
+        if not config_path.exists():
+            return cls()
+
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return cls()
+
+        channel_raw = data.get("channel", ReleaseChannel.STABLE.value)
+        try:
+            channel = ReleaseChannel(channel_raw)
+        except ValueError:
+            channel = ReleaseChannel.STABLE
+
+        return cls(
+            github_owner=data.get("github_owner", "hawkinf"),
+            github_repo=data.get("github_repo", "ai-orchestrator"),
+            check_interval_hours=data.get("check_interval_hours", 24),
+            auto_check_on_startup=data.get("auto_check_on_startup", True),
+            auto_download=data.get("auto_download", False),
+            auto_install=data.get("auto_install", False),
+            include_prereleases=data.get("include_prereleases", False),
+            channel=channel,
+            release_url=data.get("release_url", "https://github.com/hawkinf/ai-orchestrator/releases"),
+            releases_api_url=data.get("releases_api_url"),
+            installer_asset_pattern=data.get("installer_asset_pattern", "AI-Orchestrator-Setup-{version}.exe"),
+            asset_pattern=data.get("asset_pattern", "ai-orchestrator-{version}-win64.exe"),
+            timeout_seconds=data.get("timeout_seconds", 30),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize updater config."""
+        return {
+            "github_owner": self.github_owner,
+            "github_repo": self.github_repo,
+            "check_interval_hours": self.check_interval_hours,
+            "auto_check_on_startup": self.auto_check_on_startup,
+            "auto_download": self.auto_download,
+            "auto_install": self.auto_install,
+            "include_prereleases": self.include_prereleases,
+            "channel": self.channel.value,
+            "release_url": self.release_url,
+            "releases_api_url": self.releases_api_url,
+            "installer_asset_pattern": self.installer_asset_pattern,
+            "asset_pattern": self.asset_pattern,
+            "timeout_seconds": self.timeout_seconds,
+        }
+
+    @property
+    def effective_include_prereleases(self) -> bool:
+        """Determine whether prereleases should be included."""
+        return self.include_prereleases or self.channel in {ReleaseChannel.BETA, ReleaseChannel.ALPHA, ReleaseChannel.DEV}
+
+    @property
+    def effective_releases_api_url(self) -> str:
+        """Resolve the releases API URL."""
+        if self.releases_api_url:
+            return self.releases_api_url
+        return f"{Updater.GITHUB_API_URL}/repos/{self.github_owner}/{self.github_repo}/releases"
 
 
 class Updater:
@@ -127,8 +196,8 @@ class Updater:
         root_path: Optional[Path] = None,
     ):
         """Initialize updater."""
-        self.config = config or UpdateConfig()
         self.root_path = root_path or Path(__file__).parent.parent
+        self.config = config or UpdateConfig.load(self.root_path)
         self.version_manager = get_version_manager(self.root_path)
 
         # Cache directory for downloads
@@ -166,7 +235,7 @@ class Updater:
 
     def _make_api_request(self, endpoint: str) -> Dict[str, Any]:
         """Make a request to GitHub API."""
-        url = f"{self.GITHUB_API_URL}{endpoint}"
+        url = endpoint if endpoint.startswith("http://") or endpoint.startswith("https://") else f"{self.GITHUB_API_URL}{endpoint}"
         headers = {
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": f"AI-Orchestrator/{self.current_version}",
@@ -186,8 +255,7 @@ class Updater:
 
     def get_releases(self, per_page: int = 10) -> List[ReleaseInfo]:
         """Fetch list of releases from GitHub."""
-        endpoint = f"/repos/{self.config.github_owner}/{self.config.github_repo}/releases"
-        endpoint += f"?per_page={per_page}"
+        endpoint = f"{self.config.effective_releases_api_url}?per_page={per_page}"
 
         data = self._make_api_request(endpoint)
 
@@ -200,7 +268,7 @@ class Updater:
                 continue
 
             # Skip prereleases unless configured
-            if release.prerelease and not self.config.include_prereleases:
+            if release.prerelease and not self.config.effective_include_prereleases:
                 continue
 
             releases.append(release)
@@ -209,13 +277,13 @@ class Updater:
 
     def get_latest_release(self) -> Optional[ReleaseInfo]:
         """Get the latest applicable release."""
-        if self.config.include_prereleases:
+        if self.config.effective_include_prereleases:
             # Need to check all releases
             releases = self.get_releases(per_page=5)
             return releases[0] if releases else None
         else:
             # Use latest endpoint
-            endpoint = f"/repos/{self.config.github_owner}/{self.config.github_repo}/releases/latest"
+            endpoint = f"{self.config.effective_releases_api_url}/latest"
             try:
                 data = self._make_api_request(endpoint)
                 return ReleaseInfo.from_github_api(data)
@@ -300,12 +368,21 @@ class Updater:
 
     def find_asset(self, release: ReleaseInfo) -> Optional[ReleaseAsset]:
         """Find the appropriate asset for current platform."""
-        # Build expected asset name
         version_str = str(release.version)
-        expected_name = self.config.asset_pattern.format(version=version_str)
+        installer_name = self.config.installer_asset_pattern.format(version=version_str)
+        portable_name = self.config.asset_pattern.format(version=version_str)
 
         for asset in release.assets:
-            if asset.name == expected_name:
+            if asset.name == installer_name:
+                return asset
+
+        for asset in release.assets:
+            if asset.name == portable_name:
+                return asset
+
+        for asset in release.assets:
+            lowered = asset.name.lower()
+            if lowered.endswith(".msi") or "setup" in lowered:
                 return asset
 
         # Fallback: look for .exe files
@@ -420,20 +497,16 @@ class Updater:
             )
 
         try:
-            # Create backup of current executable
+            self._report_progress(0.2, "Preparing updater...")
+
             current_exe = Path(sys.executable)
-            if current_exe.suffix == ".exe":
-                backup_path = current_exe.with_suffix(".exe.bak")
-                self._report_progress(0.2, "Creating backup...")
-
-                if backup_path.exists():
-                    backup_path.unlink()
-
             self._report_progress(0.5, "Installing update...")
 
-            # For Windows, we need to use a batch script to replace the running exe
             if sys.platform == "win32":
-                self._create_windows_updater_script(download_path, current_exe)
+                if self._is_installer_asset(download_path):
+                    self._create_windows_installer_launcher_script(download_path)
+                else:
+                    self._create_windows_portable_updater_script(download_path, current_exe)
 
             self._report_progress(1.0, "Installation prepared - restart required")
 
@@ -450,8 +523,13 @@ class Updater:
                 error_message=f"Installation failed: {e}",
             )
 
-    def _create_windows_updater_script(self, source: Path, target: Path) -> Path:
-        """Create a batch script to update the executable on Windows."""
+    def _is_installer_asset(self, download_path: Path) -> bool:
+        """Return whether a downloaded asset should be treated as an installer."""
+        lowered = download_path.name.lower()
+        return lowered.endswith(".msi") or "setup" in lowered or "installer" in lowered
+
+    def _create_windows_portable_updater_script(self, source: Path, target: Path) -> Path:
+        """Create a batch script to update a portable executable on Windows."""
         script_path = self.cache_dir / "update_script.bat"
 
         script_content = f"""@echo off
@@ -475,6 +553,26 @@ del "%~f0"
 """
 
         with open(script_path, "w") as f:
+            f.write(script_content)
+
+        return script_path
+
+    def _create_windows_installer_launcher_script(self, installer_path: Path) -> Path:
+        """Create a batch script to launch an installer after shutdown."""
+        script_path = self.cache_dir / "update_script.bat"
+        script_content = f"""@echo off
+echo Waiting for application to close...
+timeout /t 2 /nobreak > nul
+
+echo Launching installer...
+start "" "{installer_path}"
+
+echo Cleaning up...
+timeout /t 5 /nobreak > nul
+del "%~f0"
+"""
+
+        with open(script_path, "w", encoding="utf-8") as f:
             f.write(script_content)
 
         return script_path
@@ -527,7 +625,7 @@ def get_updater(
     """Get or create global updater instance."""
     global _updater
 
-    if _updater is None:
+    if _updater is None or (config is not None and _updater.config != config) or (root_path is not None and _updater.root_path != root_path):
         _updater = Updater(config, root_path)
 
     return _updater

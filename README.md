@@ -75,6 +75,100 @@ Important build rules:
 - The Windows build is generated in GUI/windowed mode (`console=False`), so the final executable should open only the application window and not an extra terminal.
 - Run the build in a normal terminal session. PyInstaller warns that running as Administrator is unnecessary and not recommended.
 
+## Release Pipeline
+
+The desktop product release flow is now standardized around `build.py` and `dist/` artifacts.
+
+Available commands:
+
+```bash
+python build.py build-dev
+python build.py build-release
+python build.py installer
+python build.py release
+```
+
+What each command does:
+
+- `build-dev`: produces a development-oriented desktop build.
+- `build-release`: refreshes version metadata and generates the release executable.
+- `installer`: renders the Inno Setup script and compiles it when `ISCC.exe` is available.
+- `release`: runs the release build, attempts the installer step, and writes a release bundle under `dist/releases/v<version>/`.
+
+Build outputs:
+
+- `dist/AIOrchestrator.exe`: portable executable.
+- `dist/installer/AI-Orchestrator-Setup-<version>.exe`: Windows installer when Inno Setup is installed.
+- `dist/releases/v<version>/`: release bundle for GitHub Releases.
+- `dist/build-logs/`: build and installer logs.
+
+Version metadata sources:
+
+- `version.json`: single source of truth for version, channel and build metadata.
+- `update_config.json`: default update source, channel and release URL.
+- `CHANGELOG.md`: recent changes shown in the desktop UI and copied into release notes.
+
+## Windows Installer
+
+The installer pipeline is Windows-first and based on Inno Setup.
+
+Requirements:
+
+- Inno Setup 6 installed locally if you want the installer executable compiled automatically.
+- If Inno Setup is not installed, the project still generates `dist/installer/AIOrchestrator.iss` so the installer can be compiled later.
+
+Default installer behavior:
+
+- installs under `Program Files\AI Orchestrator`
+- creates Start Menu shortcut
+- optionally creates desktop shortcut
+- registers a modern wizard style
+- launches the app after installation
+
+## Updates
+
+The desktop app includes a product-facing update flow.
+
+What the user sees:
+
+- `Sobre` dialog with version, build date, release link and recent changes.
+- `Atualizações` dialog with current version, latest version, changelog and direct actions.
+- buttons labeled `Atualizar`, `Ver changelog` and `Depois`.
+
+Default behavior:
+
+- checks GitHub Releases using `update_config.json`
+- prefers the Windows installer artifact when available
+- allows turning off update checks on startup
+- supports release channels through the persisted UI preferences
+
+## Installation
+
+For local development:
+
+```bash
+pip install -r requirements.txt
+python -m gui.app
+```
+
+For end users on Windows:
+
+1. Download `AI-Orchestrator-Setup-<version>.exe` from the release page.
+2. Run the installer.
+3. Start AI Orchestrator from the Start Menu or desktop shortcut.
+
+Portable fallback:
+
+1. Download `AIOrchestrator-<version>-win64.exe`.
+2. Run the executable directly.
+
+## Troubleshooting Release and Update
+
+- If the installer is not generated, confirm that Inno Setup 6 is installed and `ISCC.exe` is reachable.
+- If the app icon does not appear in the packaged executable, verify that `assets/icon.ico` exists before running the build.
+- If update checks fail, validate the release endpoint in `update_config.json` and confirm that the GitHub release has a Windows artifact attached.
+- If the UI shows outdated build info, rerun `python build.py build-release` so `version.json` and `version_info.txt` are refreshed together.
+
 ## Quick Start
 
 ### Option A: GUI Mode (Recommended)

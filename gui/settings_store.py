@@ -50,6 +50,9 @@ class SettingsStore:
                     show_first_run_hints=data.get("show_first_run_hints", True),
                     recent_projects=data.get("recent_projects", []),
                     recent_tasks=data.get("recent_tasks", []),
+                    auto_check_updates=data.get("auto_check_updates", True),
+                    update_channel=data.get("update_channel", "stable"),
+                    release_url=data.get("release_url", "https://github.com/hawkinf/ai-orchestrator/releases"),
                 )
             except (json.JSONDecodeError, KeyError):
                 self._preferences = UIPreferences()
@@ -81,6 +84,9 @@ class SettingsStore:
             "show_first_run_hints": prefs.show_first_run_hints,
             "recent_projects": prefs.recent_projects[:self.MAX_RECENT_ITEMS],
             "recent_tasks": prefs.recent_tasks[:self.MAX_RECENT_ITEMS],
+            "auto_check_updates": prefs.auto_check_updates,
+            "update_channel": prefs.update_channel,
+            "release_url": prefs.release_url,
         }
 
         self.prefs_file.write_text(
@@ -168,6 +174,14 @@ class SettingsStore:
         """Set whether to show first run hints."""
         prefs = self.load_preferences()
         prefs.show_first_run_hints = show
+        self.save_preferences(prefs)
+
+    def update_update_preferences(self, auto_check_updates: bool, update_channel: str, release_url: str):
+        """Persist update-related preferences."""
+        prefs = self.load_preferences()
+        prefs.auto_check_updates = auto_check_updates
+        prefs.update_channel = update_channel
+        prefs.release_url = release_url
         self.save_preferences(prefs)
 
     def is_first_task_pending(self) -> bool:
