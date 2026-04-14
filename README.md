@@ -911,18 +911,21 @@ Complete pipeline execution in isolation:
 
 After replay, view detailed comparison:
 
-**Summary**:
+#### Summary
+
 - Overall result (Identical/Different)
 - Time comparison (original vs replay)
 - Files comparison
 - Checkpoints comparison
 
-**Stage Comparisons**:
+#### Stage Comparisons
+
 - Output diff for each stage
 - Time difference per stage
 - Success/failure status
 
-**Artifacts**:
+#### Artifacts
+
 - `report.json`: Full replay result
 - `metrics.json`: Timing and statistics
 - `diff.patch`: Unified diff of changes
@@ -939,23 +942,26 @@ View all past replays with:
 
 ### Use Cases
 
-**1. Debugging Failed Runs**
-```
+#### 1. Debugging Failed Runs
+
+```text
 1. Select the failed run
 2. Choose Dry Run mode
 3. Execute replay
 4. Compare stage outputs to find the failure point
 ```
 
-**2. Testing Checkpoint Decisions**
-```
+#### 2. Testing Checkpoint Decisions
+
+```text
 1. Select a run with checkpoints
 2. Configure custom checkpoint decisions
 3. Run replay to see different outcomes
 ```
 
-**3. Validating Changes**
-```
+#### 3. Validating Changes
+
+```text
 1. Make code changes
 2. Replay a successful run
 3. Compare outputs to ensure no regressions
@@ -963,7 +969,7 @@ View all past replays with:
 
 ### Architecture
 
-```
+```text
 orchestrator/replay_models.py   - Data models (Config, Result, Comparison)
 orchestrator/replay_engine.py   - Replay execution engine
 gui/replay_panel.py             - Visual panel (PySide6)
@@ -971,7 +977,7 @@ gui/replay_panel.py             - Visual panel (PySide6)
 
 Replay data is stored in `workspace/replays/`:
 
-```
+```text
 workspace/replays/
 ├── index.json                    - List of all replays
 └── replay-20260413-120000-abc123/
@@ -1040,7 +1046,7 @@ The Diagnostics Panel provides a pre-flight check system to verify all component
 
 ### Architecture
 
-```
+```text
 orchestrator/diagnostics.py   - Core diagnostic logic (all checks)
 gui/diagnostics_panel.py      - Visual panel (PySide6 widgets)
 gui/diagnostics_worker.py     - Background execution (QRunnable)
@@ -1051,7 +1057,7 @@ All checks run in background threads to avoid blocking the UI.
 
 ## Project Structure
 
-```
+```text
 ai-orchestrator/
 ├── orchestrator/              # Core orchestration engine
 │   ├── __init__.py
@@ -1135,7 +1141,7 @@ ai-orchestrator/
 
 Each run creates artifacts in `workspace/runs/<run_id>/`:
 
-```
+```text
 workspace/runs/20260411-143022/
 ├── task.json                    # Original task
 ├── plan.json                    # Planner response
@@ -1207,7 +1213,7 @@ The orchestrator requires an OpenAI API key for the Planner and Reviewer compone
 
 ### Option 1: Environment Variable (Windows)
 
-**Temporary (current session only):**
+#### Temporary (current session only)
 
 ```powershell
 # PowerShell
@@ -1217,7 +1223,7 @@ $env:OPENAI_API_KEY = "sk-your-key-here"
 set OPENAI_API_KEY=sk-your-key-here
 ```
 
-**Permanent (user level):**
+#### Permanent (user level)
 
 ```powershell
 # PowerShell
@@ -1225,6 +1231,7 @@ set OPENAI_API_KEY=sk-your-key-here
 ```
 
 Or via Windows Settings:
+
 1. Open Settings > System > About
 2. Click "Advanced system settings"
 3. Click "Environment Variables"
@@ -1260,6 +1267,7 @@ source ~/.bashrc
 1. Open the GUI: `python -m gui.app`
 2. Go to **Configuracoes** > **Ambiente** tab
 3. Check the API Key status:
+
    - **OK** (green): Key is configured correctly
    - **NAO ENCONTRADA** (red): Key not found
    - **VAZIA** (yellow): Key exists but is empty
@@ -1273,13 +1281,13 @@ The **Ambiente** tab includes two test buttons:
 | **Testar Conexao** | Full test: key resolution + client initialization + network connectivity |
 | **Teste Rapido** | Quick test: key resolution + client initialization only (no network call) |
 
-**What the test validates:**
+#### What the test validates
 
 1. **Key Resolution** - Checks if `OPENAI_API_KEY` is found (environment variable or .env file)
 2. **Client Initialization** - Verifies the OpenAI client can be created with the key
 3. **Network Connectivity** - Calls the `models.list()` endpoint to validate authentication and network access
 
-**Test results:**
+#### Test results
 
 | Status | Meaning |
 |--------|---------|
@@ -1288,14 +1296,14 @@ The **Ambiente** tab includes two test buttons:
 | **TESTANDO** (blue) | Test in progress |
 | **NAO TESTADO** (gray) | No test executed yet |
 
-**Limitations:**
+#### Limitations
 
 - The network test uses `models.list()` which is lightweight but still makes an API call
 - If you want to avoid API calls, use "Teste Rapido"
 - The test validates key format and connectivity but doesn't test actual completion requests
 - Rate limits may temporarily block the test
 
-**Security notes:**
+#### Security notes
 
 - The API key is never displayed in full (masked as `sk-abc1...`)
 - The key is never logged in full
@@ -1326,6 +1334,7 @@ python -m orchestrator.main run "Test task" --mock
 ### "Run not found"
 
 The run ID may be incorrect. List runs with:
+
 ```bash
 python -m orchestrator.main list
 ```
@@ -1333,6 +1342,7 @@ python -m orchestrator.main list
 ### "Executor command not found"
 
 Ensure the executor (e.g., `claude`) is in your PATH:
+
 ```bash
 where claude  # Windows
 which claude  # macOS/Linux
@@ -1345,6 +1355,7 @@ Check validation logs in `workspace/runs/<run_id>/validation/`
 ### State Corruption
 
 State files are in `workspace/state/`. If corrupted:
+
 1. Check `workspace/state/<run_id>.json`
 2. Delete if necessary and create a new run
 
@@ -1358,11 +1369,13 @@ State files are in `workspace/state/`. If corrupted:
 ## License
 
 MIT License - See LICENSE file for details.
+
 ## Command Center
 
 O `Command Center` agora é a tela inicial padrão da GUI.
 
 Ele concentra:
+
 - saúde geral do sistema
 - próxima ação sugerida
 - runs recentes
@@ -1373,6 +1386,7 @@ No modo `simple`, a tela mostra só o essencial para decidir o próximo passo.
 No modo `advanced`, ela expõe mais sinais operacionais e o resumo de saúde detalhado.
 
 Use essa tela para responder rapidamente:
+
 - o sistema está saudável?
 - existe algo urgente?
 - qual é a melhor próxima ação?
