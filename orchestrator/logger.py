@@ -9,6 +9,8 @@ from typing import Optional
 from rich.console import Console
 from rich.logging import RichHandler
 
+from .observability import get_observability
+
 
 console = Console()
 
@@ -93,34 +95,51 @@ class RunLogger:
         self._logger = get_run_logger(run_id, logs_dir, level)
         self._step_count = 0
 
+    def _record(self, event: str, message: str, level: str = "info") -> None:
+        get_observability().record_run_event(
+            run_id=self.run_id,
+            event=event,
+            message=message,
+            level=level,
+        )
+
     def step(self, message: str) -> None:
         """Log a step in the process."""
         self._step_count += 1
-        self._logger.info(f"[Step {self._step_count}] {message}")
+        rendered = f"[Step {self._step_count}] {message}"
+        self._logger.info(rendered)
+        self._record("step", rendered)
 
     def info(self, message: str) -> None:
         self._logger.info(message)
+        self._record("info", message)
 
     def debug(self, message: str) -> None:
         self._logger.debug(message)
+        self._record("debug", message, level="debug")
 
     def warning(self, message: str) -> None:
         self._logger.warning(message)
+        self._record("warning", message, level="warning")
 
     def error(self, message: str) -> None:
         self._logger.error(message)
+        self._record("error", message, level="error")
 
     def success(self, message: str) -> None:
         """Log a success message."""
         self._logger.info(f"✓ {message}")
+        self._record("success", message)
 
     def failure(self, message: str) -> None:
         """Log a failure message."""
         self._logger.error(f"✗ {message}")
+        self._record("failure", message, level="error")
 
     def checkpoint(self, message: str) -> None:
         """Log a checkpoint message."""
         self._logger.warning(f"⚠ CHECKPOINT: {message}")
+        self._record("checkpoint", message, level="warning")
 
     def separator(self) -> None:
         """Log a visual separator."""
@@ -131,3 +150,4 @@ class RunLogger:
         self.separator()
         self._logger.info(f"▶ {title}")
         self.separator()
+        self._record("section", title)

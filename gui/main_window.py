@@ -20,6 +20,7 @@ from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QCloseEvent, QIcon
 
 from orchestrator.config import OrchestratorConfig, load_config
+from orchestrator.observability import configure_observability, get_observability
 from orchestrator.recommended_actions import ActionTarget, RecommendedAction
 from orchestrator.setup_validator import SetupValidationResult, SetupValidator
 from orchestrator.updater import ReleaseInfo, UpdateConfig, UpdateResult, UpdateStatus, get_updater
@@ -275,6 +276,7 @@ class MainWindow(QMainWindow):
         self._config_path: Optional[Path] = None
         self._interface_mode = MODE_SIMPLE
         self._update_thread: Optional[UpdateTaskThread] = None
+        self.observability = get_observability()
 
         self.logger.info("Initializing MainWindow...")
 
@@ -302,6 +304,7 @@ class MainWindow(QMainWindow):
         if self.paths:
             self.settings_store = SettingsStore(self.paths.workspace_root)
             prefs = self.settings_store.load_preferences()
+            self.observability = configure_observability(self.paths.workspace_root, prefs.debug_mode)
             self.resize(prefs.window_width, prefs.window_height)
             self.move(prefs.window_x, prefs.window_y)
             if prefs.window_maximized:
@@ -430,6 +433,7 @@ class MainWindow(QMainWindow):
         # Diagnostics panel
         self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
         self.diagnostics_panel.open_logs.connect(self._open_logs_folder)
+        self.diagnostics_panel.debug_mode_changed.connect(self._on_debug_mode_changed)
         self.help_panel.about_requested.connect(self._open_about_dialog)
         self.help_panel.updates_requested.connect(self._open_update_dialog)
 
@@ -500,6 +504,7 @@ class MainWindow(QMainWindow):
         if self.settings_store:
             prefs = self.settings_store.load_preferences()
             self.task_panel.apply_preferences(prefs.show_advanced_options)
+            self.diagnostics_panel.set_debug_mode(prefs.debug_mode)
             last_tab = prefs.last_tab or "command_center"
             if last_tab in InterfaceModeManager.visible_sections(self._interface_mode):
                 self._navigate(last_tab)
@@ -750,10 +755,21 @@ class MainWindow(QMainWindow):
                 prefs.last_tab = key
                 self.settings_store.save_preferences(prefs)
 
+            self.observability.record_user_action("navigate", {"target": key})
+
     @Slot(TaskConfig)
     def _on_task_submitted(self, config: TaskConfig):
         """Handle task submission."""
         self.logger.info(f"Task submitted: {config.task_description[:50]}...")
+        self.observability.record_user_action(
+            "submit_task",
+            {
+                "profile": config.profile,
+                "auto_validate": config.auto_validate,
+                "auto_commit": config.auto_commit,
+                "auto_push": config.auto_push,
+            },
+        )
 
         # Check if a run is already active
         if self.worker_manager.has_active_run:
@@ -815,6 +831,7 @@ class MainWindow(QMainWindow):
         self._current_run_id = run_id
         self.status_widget.set_run(run_id, "executando", "iniciado", 1)
         self.logger.info(f"Run started: {run_id}")
+        self.observability.record_run_event(run_id, "run_started", "Run started from UI", iteration=1, phase="initializing")
 
     @Slot(dict)
     def _on_run_progress(self, event_dict: dict):
@@ -835,6 +852,17 @@ class MainWindow(QMainWindow):
         else:
             self.logger.debug(f"Run progress [{phase}]: {message}")
 
+        self.observability.record_run_event(
+            run_id,
+            "run_progress",
+            message,
+            iteration=iteration,
+            phase=phase,
+            context={"max_iterations": max_iterations, "is_error": is_error},
+            level="warning" if is_error else "debug",
+            debug_only=not is_error,
+        )
+
         # Optionally update run panel with live progress
         # This could be extended to show real-time logs
 
@@ -843,6 +871,7 @@ class MainWindow(QMainWindow):
         """Handle phase change."""
         self.status_widget.set_run(run_id, "executando", phase, self._get_current_iteration())
         self.logger.info(f"Phase changed: {phase}")
+        self.observability.record_run_event(run_id, "phase_changed", f"Phase changed to {phase}", phase=phase)
 
     @Slot(str, int, int)
     def _on_iteration_changed(self, run_id: str, current: int, max_iter: int):
@@ -851,11 +880,27 @@ class MainWindow(QMainWindow):
         self.status_widget.set_run(run_id, "executando", phase, current)
         self.status_widget.iter_label.setText(f"Iteracao: {current}/{max_iter}")
         self.logger.info(f"Iteration changed: {current}/{max_iter}")
+        self.observability.record_run_event(
+            run_id,
+            "iteration_changed",
+            f"Iteration {current} of {max_iter}",
+            iteration=current,
+            phase=phase,
+        )
 
     @Slot(str, str, str)
     def _on_checkpoint_pending(self, run_id: str, reason: str, description: str):
         """Handle checkpoint pending notification."""
         self.logger.info(f"Checkpoint pending: {reason} - {description}")
+        self.observability.record_run_event(
+            run_id,
+            "checkpoint_pending",
+            description or reason,
+            iteration=self._get_current_iteration(),
+            phase="checkpoint",
+            context={"reason": reason},
+            level="warning",
+        )
         self.status_widget.set_run(run_id, "checkpoint", "aguardando", self._get_current_iteration())
         self.status_widget.set_loading(False)
 
@@ -872,6 +917,14 @@ class MainWindow(QMainWindow):
     def _on_run_completed(self, run_id: str, summary: dict):
         """Handle run completed."""
         self.logger.info(f"Run completed: {run_id}")
+        self.observability.record_run_event(
+            run_id,
+            "run_completed",
+            "Run completed successfully",
+            iteration=summary.get("iterations"),
+            phase="completed",
+            context=summary,
+        )
         self.status_widget.set_loading(False)
         self.status_widget.set_run(run_id, "concluido", "finalizado", 0)
 
@@ -912,6 +965,13 @@ class MainWindow(QMainWindow):
     def _on_run_failed(self, run_id: str, error: str):
         """Handle run failed."""
         self.logger.error(f"Run failed: {run_id} - {error}")
+        self.observability.record_error(
+            error_type="RunExecutionFailed",
+            message=error,
+            context={"source": "main_window"},
+            run_id=run_id,
+            phase="run_failed",
+        )
         self.status_widget.set_loading(False)
         self.status_widget.set_run(run_id or "erro", "falhou", "erro", 0)
 
@@ -1117,6 +1177,7 @@ class MainWindow(QMainWindow):
 
         self.status_widget.set_loading(True)
         self._current_run_id = run_id
+        self.observability.record_user_action("resume_run", {"run_id": run_id})
 
         # Use new ResumeRunWorker
         worker = self.worker_manager.resume_run(
@@ -1148,6 +1209,10 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             approve = dialog.was_approved()
             note = dialog.get_note()
+            self.observability.record_user_action(
+                "checkpoint_decision",
+                {"run_id": run_id, "approved": approve, "note_present": bool(note)},
+            )
 
             # Use new CheckpointActionWorker
             worker = self.worker_manager.handle_checkpoint(
@@ -1245,6 +1310,10 @@ class MainWindow(QMainWindow):
     def _on_settings_saved(self, settings):
         """Handle settings saved."""
         self._apply_and_persist_settings(settings)
+        self.observability.record_user_action(
+            "save_settings",
+            {"project_path": settings.project_path, "profile": settings.active_profile},
+        )
         result = self._validate_minimum_setup()
         message = "Configurações salvas."
         if result and result.is_ready:
@@ -1296,6 +1365,7 @@ class MainWindow(QMainWindow):
             subprocess.run(["open", str(logs_path)])
         else:
             subprocess.run(["xdg-open", str(logs_path)])
+        self.observability.record_user_action("open_logs_folder", {"path": str(logs_path)})
 
     def _execute_recommended_action(self, action: RecommendedAction):
         """Execute a recommended action emitted by the GUI."""
@@ -1372,7 +1442,25 @@ class MainWindow(QMainWindow):
             prefs.interface_mode = self._interface_mode
             self.settings_store.save_preferences(prefs)
 
+        self.observability.record_app_event(
+            event="window_closed",
+            message="Main window closed",
+            context={"current_run_id": self._current_run_id, "interface_mode": self._interface_mode},
+        )
+
         event.accept()
+
+    @Slot(bool)
+    def _on_debug_mode_changed(self, enabled: bool):
+        """Handle debug mode changes from diagnostics UI."""
+        if self.settings_store:
+            self.settings_store.update_debug_mode(enabled)
+        self.observability = configure_observability(self.paths.workspace_root, enabled) if self.paths else get_observability()
+        self.observability.record_app_event(
+            event="debug_mode_changed_from_ui",
+            message="Debug mode updated from diagnostics panel",
+            context={"enabled": enabled},
+        )
 
     def set_engine(self, engine):
         """Set the orchestration engine."""
@@ -1501,6 +1589,8 @@ class MainWindow(QMainWindow):
         self._project_path = self.paths.project_root
         self._config_path = config_path
         self.settings_store = SettingsStore(self.paths.workspace_root)
+        prefs = self.settings_store.load_preferences()
+        self.observability = configure_observability(self.paths.workspace_root, prefs.debug_mode)
 
         self.config_panel.set_settings(config_to_settings(self.config))
         self.config_panel.set_interface_mode(self._interface_mode)
@@ -1513,6 +1603,7 @@ class MainWindow(QMainWindow):
         self.checkpoints_panel.set_workspace(self.paths.workspace_root)
         self.checkpoints_panel.set_config(self.config)
         self.diagnostics_panel.set_config(self.config, self.paths, self._project_path)
+        self.diagnostics_panel.set_debug_mode(prefs.debug_mode)
         self.command_center_panel.set_runtime_context(
             config=self.config,
             project_path=self._project_path,
@@ -1524,12 +1615,21 @@ class MainWindow(QMainWindow):
         self._refresh_runs()
         self._check_checkpoints()
 
-        prefs = self.settings_store.load_preferences()
         prefs.last_project_path = settings.project_path
         prefs.last_profile = settings.active_profile
         prefs.interface_mode = self._interface_mode
         prefs.show_advanced_options = self.task_panel.settings_section.isVisible()
         self.settings_store.save_preferences(prefs)
+        self.observability.record_app_event(
+            event="settings_applied",
+            message="Configuration persisted and runtime refreshed",
+            context={
+                "project_path": settings.project_path,
+                "profile": settings.active_profile,
+                "workspace_root": str(self.paths.workspace_root),
+                "debug_mode": prefs.debug_mode,
+            },
+        )
 
     def _run_first_task_wizard(self):
         """Launch the first task wizard for guided first run."""

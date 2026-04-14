@@ -199,3 +199,4 @@ class UIPreferences:
     auto_check_updates: bool = True
     update_channel: str = "stable"
     release_url: str = "https://github.com/hawkinf/ai-orchestrator/releases"
+    debug_mode: bool = False

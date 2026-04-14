@@ -25,8 +25,10 @@ from orchestrator.diagnostics import (
     DiagnosticReport,
     get_check_definitions,
 )
+from orchestrator.observability import get_observability
 from .diagnostics_models import DiagnosticsUIState, DiagnosticCheckUIState
 from .diagnostics_worker import DiagnosticsManager
+from .settings_store import SettingsStore
 
 logger = logging.getLogger("ai_orchestrator.diagnostics_panel")
 
@@ -305,6 +307,7 @@ class DiagnosticsPanel(QWidget):
     # Signals
     open_config = Signal()
     open_logs = Signal()
+    debug_mode_changed = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -315,6 +318,7 @@ class DiagnosticsPanel(QWidget):
         self._state = DiagnosticsUIState.initialize()
         self._check_widgets: dict[str, CheckItemWidget] = {}
         self._last_report: Optional[DiagnosticReport] = None
+        self._debug_mode = False
         self._setup_ui()
 
     def _setup_ui(self):
@@ -412,12 +416,24 @@ class DiagnosticsPanel(QWidget):
 
         actions_layout.addStretch()
 
+        self.debug_mode_btn = QPushButton("Modo normal")
+        self.debug_mode_btn.setObjectName("secondary")
+        self.debug_mode_btn.setCheckable(True)
+        self.debug_mode_btn.clicked.connect(self._toggle_debug_mode)
+        actions_layout.addWidget(self.debug_mode_btn)
+
         # Export button
         self.export_btn = QPushButton("Exportar Relatorio")
         self.export_btn.setObjectName("secondary")
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self._export_report)
         actions_layout.addWidget(self.export_btn)
+
+        self.export_package_btn = QPushButton("Gerar Pacote")
+        self.export_package_btn.setObjectName("secondary")
+        self.export_package_btn.setEnabled(False)
+        self.export_package_btn.clicked.connect(self._export_diagnostic_package)
+        actions_layout.addWidget(self.export_package_btn)
 
         # Copy button
         self.copy_btn = QPushButton("Copiar Relatorio")
@@ -451,6 +467,14 @@ class DiagnosticsPanel(QWidget):
             project_path=self._project_path,
         )
 
+        prefs_path = paths.workspace_root / SettingsStore.DEFAULT_PREFS_FILE if paths else None
+        if prefs_path and prefs_path.exists():
+            try:
+                prefs = SettingsStore(paths.workspace_root).load_preferences()
+                self.set_debug_mode(prefs.debug_mode)
+            except Exception:
+                self.set_debug_mode(False)
+
     def _run_all_checks(self):
         """Run all diagnostic checks."""
         if not self._manager:
@@ -482,6 +506,7 @@ class DiagnosticsPanel(QWidget):
         self.run_all_btn.setEnabled(False)
 
         # Run diagnostics
+        get_observability().record_user_action("run_all_diagnostics")
         self._manager.run_all(
             on_started=self._on_diagnostics_started,
             on_check_started=self._on_check_started,
@@ -500,6 +525,8 @@ class DiagnosticsPanel(QWidget):
         widget = self._check_widgets.get(check_key)
         if widget:
             widget.set_running(True)
+
+        get_observability().record_user_action("run_single_diagnostic", {"check_key": check_key})
 
         self._manager.run_single(
             check_key=check_key,
@@ -558,8 +585,14 @@ class DiagnosticsPanel(QWidget):
         self.run_all_btn.setEnabled(True)
         self.export_btn.setEnabled(True)
         self.copy_btn.setEnabled(True)
+        self.export_package_btn.setEnabled(True)
 
         logger.info(f"Diagnostics completed: {report.overall_status.value}")
+        get_observability().record_app_event(
+            event="diagnostics_completed",
+            message="Diagnostics finished",
+            context={"overall_status": report.overall_status.value, "checks": len(report.checks)},
+        )
 
     @Slot(str)
     def _on_diagnostics_failed(self, error: str):
@@ -574,6 +607,11 @@ class DiagnosticsPanel(QWidget):
         QMessageBox.critical(
             self, "Erro",
             f"Erro ao executar diagnostico:\n\n{error}"
+        )
+        get_observability().record_error(
+            error_type="DiagnosticsExecutionError",
+            message=error,
+            context={"panel": "diagnostics"},
         )
 
     def _on_single_check_failed(self, check_key: str, error: str):
@@ -623,6 +661,7 @@ class DiagnosticsPanel(QWidget):
                 self._paths.workspace_root,
                 format="both"
             )
+            get_observability().record_user_action("export_diagnostic_report", {"paths": {k: str(v) for k, v in paths.items()}})
 
             msg = "Relatorio exportado:\n"
             if "json" in paths:
@@ -634,6 +673,12 @@ class DiagnosticsPanel(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Erro ao exportar:\n{e}")
+            get_observability().record_error(
+                error_type=type(e).__name__,
+                message=str(e),
+                context={"action": "export_report"},
+                exception=e,
+            )
 
     def _copy_report(self):
         """Copy report to clipboard."""
@@ -645,6 +690,7 @@ class DiagnosticsPanel(QWidget):
             clipboard = QApplication.clipboard()
             clipboard.setText(self._last_report.to_markdown())
             QMessageBox.information(self, "Copiado", "Relatorio copiado para a area de transferencia.")
+            get_observability().record_user_action("copy_diagnostic_report")
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao copiar: {e}")
 
@@ -663,5 +709,50 @@ class DiagnosticsPanel(QWidget):
                 subprocess.run(["open", str(logs_path)])
             else:
                 subprocess.run(["xdg-open", str(logs_path)])
+            get_observability().record_user_action("open_logs_folder", {"path": str(logs_path)})
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao abrir pasta: {e}")
+
+    def set_debug_mode(self, enabled: bool):
+        """Update the local debug mode presentation."""
+        self._debug_mode = enabled
+        self.debug_mode_btn.setChecked(enabled)
+        self.debug_mode_btn.setText("Modo debug" if enabled else "Modo normal")
+
+    def _toggle_debug_mode(self):
+        """Toggle debug mode for observability."""
+        enabled = self.debug_mode_btn.isChecked()
+        self.set_debug_mode(enabled)
+        get_observability().set_debug_mode(enabled)
+        get_observability().record_user_action("toggle_debug_mode", {"enabled": enabled})
+        self.debug_mode_changed.emit(enabled)
+
+    def _export_diagnostic_package(self):
+        """Export a support-ready diagnostic package."""
+        if not self._paths:
+            QMessageBox.warning(self, "Aviso", "Workspace indisponivel para exportacao.")
+            return
+
+        try:
+            workspace_root = self._paths.workspace_root
+            preferences_path = workspace_root / SettingsStore.DEFAULT_PREFS_FILE
+            config_path = self._project_path / "config.yaml" if self._project_path else None
+            version_path = Path(__file__).resolve().parent.parent / "version.json"
+            archive_path = get_observability().create_diagnostic_package(
+                report=self._last_report,
+                config_path=config_path,
+                preferences_path=preferences_path,
+                version_path=version_path,
+                metadata={
+                    "overall_status": self._last_report.overall_status.value if self._last_report else None,
+                },
+            )
+            QMessageBox.information(self, "Pacote gerado", f"Pacote salvo em:\n\n{archive_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao gerar pacote:\n{e}")
+            get_observability().record_error(
+                error_type=type(e).__name__,
+                message=str(e),
+                context={"action": "export_diagnostic_package"},
+                exception=e,
+            )

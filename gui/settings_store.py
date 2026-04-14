@@ -53,6 +53,7 @@ class SettingsStore:
                     auto_check_updates=data.get("auto_check_updates", True),
                     update_channel=data.get("update_channel", "stable"),
                     release_url=data.get("release_url", "https://github.com/hawkinf/ai-orchestrator/releases"),
+                    debug_mode=data.get("debug_mode", False),
                 )
             except (json.JSONDecodeError, KeyError):
                 self._preferences = UIPreferences()
@@ -87,6 +88,7 @@ class SettingsStore:
             "auto_check_updates": prefs.auto_check_updates,
             "update_channel": prefs.update_channel,
             "release_url": prefs.release_url,
+            "debug_mode": prefs.debug_mode,
         }
 
         self.prefs_file.write_text(
@@ -182,6 +184,12 @@ class SettingsStore:
         prefs.auto_check_updates = auto_check_updates
         prefs.update_channel = update_channel
         prefs.release_url = release_url
+        self.save_preferences(prefs)
+
+    def update_debug_mode(self, debug_mode: bool):
+        """Persist runtime debug mode preference."""
+        prefs = self.load_preferences()
+        prefs.debug_mode = debug_mode
         self.save_preferences(prefs)
 
     def is_first_task_pending(self) -> bool:

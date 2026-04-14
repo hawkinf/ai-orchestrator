@@ -142,6 +142,24 @@ Default behavior:
 - allows turning off update checks on startup
 - supports release channels through the persisted UI preferences
 
+## Logging and Diagnostics
+
+The desktop runtime now keeps a structured local observability trail under `workspace/`.
+
+- `workspace/logs/app.log`: JSONL application events and mirrored Python logging.
+- `workspace/logs/runs.log`: JSONL run lifecycle events, checkpoints and execution progress.
+- `workspace/logs/errors.log`: JSONL failures with error ids, context and traceback when available.
+- `workspace/logs/user_actions.log`: JSONL navigation, command and support actions triggered from the UI.
+- `workspace/state/failure_stats.json`: local counters by failure type plus a short recent error history.
+- `workspace/diagnostics/diagnostic_<timestamp>.zip`: support package with report, logs, preferences and recent state.
+
+Operational behavior:
+
+- `Diagnostico` now includes a `Modo normal` / `Modo debug` toggle stored in GUI preferences.
+- `Exportar Relatorio` still writes human-readable outputs.
+- `Gerar Pacote` creates a support-ready zip for later analysis.
+- Unhandled GUI exceptions now receive an error id and a copyable details dialog.
+
 ## Installation
 
 For local development:

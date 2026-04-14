@@ -21,6 +21,7 @@ class OrchestratorPaths:
             self.reports_dir,
             self.audits_dir,
             self.logs_dir,
+            self.diagnostics_dir,
             self.state_dir,
         ]
         for d in dirs:
@@ -49,6 +50,10 @@ class OrchestratorPaths:
     @property
     def logs_dir(self) -> Path:
         return self.workspace_root / "logs"
+
+    @property
+    def diagnostics_dir(self) -> Path:
+        return self.workspace_root / "diagnostics"
 
     @property
     def state_dir(self) -> Path:

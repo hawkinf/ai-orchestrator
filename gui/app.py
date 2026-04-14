@@ -10,7 +10,9 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
+from orchestrator.observability import configure_observability, get_observability
 from orchestrator.version import get_version_info
+from gui.settings_store import SettingsStore
 
 
 # Setup logging
@@ -62,18 +64,34 @@ def global_exception_handler(exc_type, exc_value, exc_tb):
     tb_lines = traceback.format_exception(exc_type, exc_value, exc_tb)
     tb_text = "".join(tb_lines)
 
+    observability = get_observability()
+    error_id = observability.record_error(
+        error_type=getattr(exc_type, "__name__", "UnhandledException"),
+        message=str(exc_value),
+        context={"source": "global_exception_handler"},
+        traceback_text=tb_text,
+        fatal=True,
+    )
+
     # Log the error
     logger.critical(f"Uncaught exception:\n{tb_text}")
 
     # Show error dialog if QApplication exists
     app = QApplication.instance()
     if app:
-        QMessageBox.critical(
-            None,
-            "Erro Fatal",
-            f"Ocorreu um erro inesperado:\n\n{exc_value}\n\n"
-            "Verifique o console para mais detalhes."
+        dialog = QMessageBox(QMessageBox.Icon.Critical, "Erro Fatal", "Ocorreu um erro inesperado.")
+        dialog.setInformativeText(
+            f"Erro: {exc_value}\n\nID do erro: {error_id}\n"
+            "Use 'Copiar detalhes' para compartilhar o diagnostico."
         )
+        dialog.setDetailedText(tb_text)
+        copy_button = dialog.addButton("Copiar detalhes", QMessageBox.ButtonRole.ActionRole)
+        dialog.addButton(QMessageBox.StandardButton.Close)
+        dialog.exec()
+        if dialog.clickedButton() == copy_button:
+            QApplication.clipboard().setText(
+                f"Error ID: {error_id}\n\n{tb_text}"
+            )
 
 
 def run_gui():
@@ -121,6 +139,18 @@ def run_gui():
             paths = OrchestratorPaths(config.workspace_path, config.project_path)
             logger.info(f"Workspace initialized: {paths.workspace_root}")
 
+            prefs = SettingsStore(paths.workspace_root).load_preferences()
+            observability = configure_observability(paths.workspace_root, debug_mode=prefs.debug_mode)
+            observability.record_app_event(
+                event="gui_startup",
+                message="GUI startup with loaded configuration",
+                context={
+                    "workspace_root": str(paths.workspace_root),
+                    "project_path": str(config.project_path),
+                    "debug_mode": prefs.debug_mode,
+                },
+            )
+
             # Re-setup logging with proper log directory
             setup_logging(paths.logs_dir)
 
@@ -137,6 +167,8 @@ def run_gui():
                 config = OrchestratorConfig()
                 paths = OrchestratorPaths(config.workspace_path, config.project_path)
                 logger.info(f"Default workspace: {paths.workspace_root}")
+                prefs = SettingsStore(paths.workspace_root).load_preferences()
+                configure_observability(paths.workspace_root, debug_mode=prefs.debug_mode)
             except Exception as fallback_error:
                 logger.error(f"Failed to create default config: {fallback_error}")
 
@@ -153,6 +185,8 @@ def run_gui():
 
                 config = OrchestratorConfig()
                 paths = OrchestratorPaths(config.workspace_path, config.project_path)
+                prefs = SettingsStore(paths.workspace_root).load_preferences()
+                configure_observability(paths.workspace_root, debug_mode=prefs.debug_mode)
             except Exception as fallback_error:
                 logger.error(f"Failed to create default config: {fallback_error}")
 
@@ -176,6 +210,11 @@ def run_gui():
             )
 
         logger.info("GUI started successfully")
+        get_observability().record_app_event(
+            event="gui_ready",
+            message="Main window displayed successfully",
+            context={"app_name": version_info.app_name, "version": str(version_info.version)},
+        )
 
         # Run event loop
         return app.exec()
@@ -183,6 +222,13 @@ def run_gui():
     except Exception as e:
         logger.critical(f"Fatal error starting GUI: {e}")
         logger.critical(traceback.format_exc())
+        get_observability().record_error(
+            error_type=type(e).__name__,
+            message=str(e),
+            context={"source": "run_gui"},
+            traceback_text=traceback.format_exc(),
+            fatal=True,
+        )
 
         # Try to show error dialog
         try:
