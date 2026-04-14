@@ -1,6 +1,10 @@
 """Shared pytest fixtures for GUI tests."""
 
 import pytest
+import os
+
+# Ensure tests run headlessly so no real dialogs pop up during build
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 
 @pytest.fixture(scope="session")

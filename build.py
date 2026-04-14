@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -387,9 +388,12 @@ def build_installer() -> Path:
 def run_tests() -> bool:
     """Run the test suite."""
     print("Running tests...")
+    env = dict(os.environ)
+    env["QT_QPA_PLATFORM"] = "offscreen"
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-v", "--tb=short"],
         cwd=ROOT_PATH,
+        env=env,
     )
     return result.returncode == 0
 

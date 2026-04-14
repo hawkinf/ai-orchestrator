@@ -170,30 +170,37 @@ def test_first_task_wizard_emits_task_submitted(qapp, tmp_path):
 
 def test_first_run_completion_dialog_shows_success(qapp):
     from gui.first_task_wizard import FirstRunCompletionDialog
+    from PySide6.QtWidgets import QLabel
 
     dialog = FirstRunCompletionDialog(
         run_id="test-run-123",
         success=True,
         summary="Task completed successfully"
     )
-    dialog.show()
-    qapp.processEvents()
 
-    assert "sucesso" in dialog.windowTitle().lower() or dialog.success
+    labels = [label.text() for label in dialog.findChildren(QLabel)]
+
+    assert dialog.windowTitle() == "Primeira Tarefa Concluída"
+    assert dialog.success is True
+    assert any("sucesso" in text.lower() for text in labels)
+    dialog.close()
 
 
 def test_first_run_completion_dialog_shows_failure(qapp):
     from gui.first_task_wizard import FirstRunCompletionDialog
+    from PySide6.QtWidgets import QLabel
 
     dialog = FirstRunCompletionDialog(
         run_id="test-run-123",
         success=False,
         summary="Task failed with error"
     )
-    dialog.show()
-    qapp.processEvents()
+
+    labels = [label.text() for label in dialog.findChildren(QLabel)]
 
     assert not dialog.success
+    assert any("problemas" in text.lower() for text in labels)
+    dialog.close()
 
 
 def test_first_run_completion_dialog_failure_exposes_diagnostics_action(qapp):
@@ -205,12 +212,11 @@ def test_first_run_completion_dialog_failure_exposes_diagnostics_action(qapp):
         success=False,
         summary="Falha na validação"
     )
-    dialog.show()
-    qapp.processEvents()
 
     diagnostics_button = dialog.findChild(QPushButton, "first_run_diagnostics_button")
 
     assert diagnostics_button is not None
+    dialog.close()
 
 
 def test_first_task_examples_exist_for_all_profiles():
