@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -390,8 +391,9 @@ def run_tests() -> bool:
     print("Running tests...")
     env = dict(os.environ)
     env["QT_QPA_PLATFORM"] = "offscreen"
+    basetemp = Path(tempfile.mkdtemp(prefix="ai-orchestrator-pytest-"))
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "-v", "--tb=short"],
+        [sys.executable, "-m", "pytest", "-v", "--tb=short", f"--basetemp={basetemp}"],
         cwd=ROOT_PATH,
         env=env,
     )
