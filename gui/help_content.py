@@ -326,6 +326,67 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="insights",
+        title="Como Interpretar os Insights",
+        summary="Entenda os insights gerados após cada execução.",
+        content="""
+<h2>Como Interpretar os Insights da Run</h2>
+
+<h3>O que são Insights?</h3>
+<p>Insights são análises automáticas que ajudam você a entender o que aconteceu na execução e o que pode melhorar.</p>
+
+<h3>Sumário Executivo</h3>
+<p>No topo da aba Insights você verá um resumo com:</p>
+<ul>
+<li><b>Resultado geral:</b> sucesso, sucesso com avisos, falha ou interrompido</li>
+<li><b>Resumo em uma frase:</b> o que aconteceu de mais importante</li>
+<li><b>Métricas:</b> duração, etapas concluídas, arquivos alterados</li>
+</ul>
+
+<h3>Níveis de Severidade</h3>
+<ul>
+<li><b style="color: #3b82f6;">ℹ Informação:</b> Dados úteis, sem ação necessária</li>
+<li><b style="color: #22c55e;">✓ Sucesso:</b> Algo funcionou bem, parabéns</li>
+<li><b style="color: #f59e0b;">⚠ Aviso:</b> Atenção recomendada, pode melhorar</li>
+<li><b style="color: #ef4444;">✗ Erro:</b> Problema que precisa de correção</li>
+</ul>
+
+<h3>Categorias de Insights</h3>
+<ul>
+<li><b>Validação:</b> Resultados de testes e análise estática</li>
+<li><b>Execução:</b> O que o executor fez e como</li>
+<li><b>Revisão:</b> Feedback do revisor sobre qualidade</li>
+<li><b>Checkpoint:</b> Pausas que exigiram aprovação</li>
+<li><b>Git:</b> Commits, branches e operações de versionamento</li>
+<li><b>Performance:</b> Tempo de execução e gargalos</li>
+<li><b>Confiabilidade:</b> Erros, retentativas e estabilidade</li>
+</ul>
+
+<h3>Recomendações</h3>
+<p>Cada insight pode incluir uma recomendação prática. Exemplos:</p>
+<ul>
+<li>"Revise os testes que falharam antes de commitar"</li>
+<li>"Considere aumentar o timeout para tarefas longas"</li>
+<li>"Verifique os arquivos modificados antes do push"</li>
+</ul>
+
+<h3>Exportar Insights</h3>
+<p>Os insights são salvos automaticamente na pasta da run em dois formatos:</p>
+<ul>
+<li><b>insights.json:</b> Dados estruturados para automação</li>
+<li><b>insights.md:</b> Relatório legível para humanos</li>
+</ul>
+
+<h3>Dicas de Uso</h3>
+<ul>
+<li>Comece pelo sumário executivo para ter uma visão geral</li>
+<li>Priorize insights de erro (vermelho) e aviso (amarelo)</li>
+<li>Use as recomendações como guia de próximos passos</li>
+<li>Compare insights entre runs para ver evolução</li>
+</ul>
+""",
+    ),
+    HelpSection(
         key="roles",
         title="Planner, Executor e Reviewer",
         summary="O papel de cada etapa do pipeline.",
