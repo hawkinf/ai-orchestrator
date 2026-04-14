@@ -14,7 +14,7 @@ The system eliminates manual copy-paste between models by using a file-based pip
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        AI ORCHESTRATOR                          │
 ├─────────────────────────────────────────────────────────────────┤
@@ -38,7 +38,7 @@ The system eliminates manual copy-paste between models by using a file-based pip
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Installation
+## Local Installation
 
 ```bash
 # Clone or copy the project
@@ -448,7 +448,7 @@ LOG_LEVEL=INFO
 
 ### Complete Pipeline
 
-```
+```text
 TASK → PLAN → EXECUTE → REVIEW → VALIDATE → COMMIT → PUSH
 ```
 
@@ -578,7 +578,7 @@ The dashboard auto-refreshes every 5 seconds by default. Toggle with the **Auto-
 
 ### Architecture
 
-```
+```text
 orchestrator/run_index.py     - Data aggregation from workspace
 gui/dashboard_panel.py        - Visual dashboard (PySide6)
 gui/dashboard_worker.py       - Background loading (QRunnable)
@@ -693,7 +693,7 @@ The panel auto-refreshes every 5 seconds. Toggle with the **Auto-refresh** check
 
 ### Architecture
 
-```
+```text
 orchestrator/checkpoint_index.py  - Checkpoint aggregation from workspace
 orchestrator/checkpoint.py        - Core checkpoint logic
 gui/checkpoints_panel.py          - Visual panel (PySide6)
@@ -807,7 +807,7 @@ Rules are evaluated in priority order (lower number = higher priority):
 
 ### Architecture
 
-```
+```text
 orchestrator/policy_models.py   - Data models (Rule, Decision, Context)
 orchestrator/policy_store.py    - Persistence (rules.json, history.json)
 orchestrator/policy_engine.py   - Evaluation engine
@@ -816,7 +816,7 @@ gui/policy_panel.py             - Visual panel (PySide6)
 
 Policy decisions are stored in `workspace/policies/`:
 
-```
+```text
 workspace/policies/
 ├── rules.json      - All policy rules
 ├── history.json    - Decision history (last 1000)
