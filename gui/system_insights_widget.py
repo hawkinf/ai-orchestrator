@@ -8,6 +8,7 @@ from typing import Optional
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from PySide6.QtCore import Signal
 
+from orchestrator.recommended_actions import RecommendedActionsEngine
 from orchestrator.system_insights import (
     SystemHealthStatus,
     SystemInsightReport,
@@ -15,6 +16,7 @@ from orchestrator.system_insights import (
     health_status_display,
     trend_direction_display,
 )
+from .recommended_actions_widget import RecommendedActionsWidget
 
 
 HEALTH_COLORS = {
@@ -59,6 +61,7 @@ class SystemInsightsWidget(QFrame):
     """Compact summary widget for the dashboard."""
 
     open_requested = Signal()
+    action_requested = Signal(object)
 
     def __init__(self, workspace_path: Optional[Path] = None, parent=None):
         super().__init__(parent)
@@ -114,6 +117,10 @@ class SystemInsightsWidget(QFrame):
         self.insights_container = QVBoxLayout()
         self.insights_container.setSpacing(8)
         layout.addLayout(self.insights_container)
+
+        self.actions_widget = RecommendedActionsWidget()
+        self.actions_widget.action_requested.connect(self.action_requested.emit)
+        layout.addWidget(self.actions_widget)
 
     def _create_metric_widget(self) -> QWidget:
         widget = QWidget()
@@ -172,6 +179,7 @@ class SystemInsightsWidget(QFrame):
             self.summary_label.setText("Ainda não há histórico suficiente para gerar insights agregados.")
             for widget in self.metric_widgets.values():
                 self._set_metric(widget, "-", "-", "")
+            self.actions_widget.clear_group()
             return
 
         color = HEALTH_COLORS.get(self._report.health_status, "#6b7280")
@@ -189,6 +197,8 @@ class SystemInsightsWidget(QFrame):
 
         for insight in self._report.insights[:3]:
             self.insights_container.addWidget(SystemInsightMiniCard(insight.title, insight.message, insight.severity))
+
+        self.actions_widget.set_group(RecommendedActionsEngine().from_system_report(self._report))
 
     def _set_metric(self, widget: QWidget, label_text: str, value_text: str, detail_text: str):
         label = widget.findChild(QLabel, "label")

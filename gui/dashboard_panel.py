@@ -240,6 +240,40 @@ class FilterBar(QFrame):
         self.checkpoint_cb.setChecked(False)
         self.error_cb.setChecked(False)
 
+    def apply_quick_filter(
+        self,
+        *,
+        status: Optional[str] = None,
+        profile: Optional[str] = None,
+        has_checkpoint: Optional[bool] = None,
+        has_error: Optional[bool] = None,
+        search_text: str = "",
+    ):
+        """Apply a quick filter programmatically."""
+        self.search_edit.setText(search_text)
+
+        def set_combo_by_data(combo: QComboBox, expected):
+            for index in range(combo.count()):
+                data = combo.itemData(index)
+                if hasattr(data, "value"):
+                    data = data.value
+                if data == expected:
+                    combo.setCurrentIndex(index)
+                    return
+
+        if status:
+            set_combo_by_data(self.status_combo, status)
+        else:
+            self.status_combo.setCurrentIndex(0)
+
+        if profile:
+            set_combo_by_data(self.profile_combo, profile)
+        else:
+            self.profile_combo.setCurrentIndex(0)
+
+        self.checkpoint_cb.setChecked(bool(has_checkpoint))
+        self.error_cb.setChecked(bool(has_error))
+
 
 class RunsTable(QTableWidget):
     """Table showing all runs."""
@@ -603,6 +637,7 @@ class DashboardPanel(QWidget):
     open_diagnostics = Signal()
     navigate_to_runs = Signal(str)  # run_id to show
     navigate_to_new_task = Signal()
+    recommended_action_requested = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -661,6 +696,7 @@ class DashboardPanel(QWidget):
 
         self.system_insights_widget = SystemInsightsWidget()
         self.system_insights_widget.open_requested.connect(self._open_system_insights_panel)
+        self.system_insights_widget.action_requested.connect(self.recommended_action_requested.emit)
         layout.addWidget(self.system_insights_widget)
 
         # Filter bar
@@ -835,6 +871,25 @@ class DashboardPanel(QWidget):
         self._manager.set_filter(self.filter_bar.get_filter())
         self._load_data()
 
+    def apply_quick_filter(
+        self,
+        *,
+        status: Optional[str] = None,
+        profile: Optional[str] = None,
+        has_checkpoint: Optional[bool] = None,
+        has_error: Optional[bool] = None,
+        search_text: str = "",
+    ):
+        """Apply dashboard filters programmatically."""
+        self.filter_bar.apply_quick_filter(
+            status=status,
+            profile=profile,
+            has_checkpoint=has_checkpoint,
+            has_error=has_error,
+            search_text=search_text,
+        )
+        self._on_filter_changed()
+
     def _on_refresh(self):
         """Handle manual refresh."""
         self._load_data()
@@ -960,6 +1015,7 @@ class DashboardPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         panel = SystemInsightsPanel(self._workspace_path)
+        panel.action_requested.connect(self.recommended_action_requested.emit)
         layout.addWidget(panel)
         panel.refresh()
         dialog.exec()

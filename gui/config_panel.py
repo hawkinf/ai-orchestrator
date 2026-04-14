@@ -744,6 +744,34 @@ class ConfigPanel(QWidget):
 
         QTimer.singleShot(0, apply_focus)
 
+    def open_tab(self, tab_name: str):
+        """Open a settings tab by visible title."""
+        normalized = tab_name.strip().lower()
+        for index in range(self.tabs.count()):
+            if self.tabs.tabText(index).strip().lower() == normalized:
+                self.tabs.setCurrentIndex(index)
+                break
+
+    def focus_executor_configuration(self):
+        """Open the executor tab and focus the command field."""
+        self.open_tab("Executor")
+
+        def apply_focus():
+            self.executor_cmd_edit.setFocus()
+            self.executor_cmd_edit.selectAll()
+
+        QTimer.singleShot(0, apply_focus)
+
+    def focus_git_configuration(self):
+        """Open the Git tab and focus the remote field."""
+        self.open_tab("Git")
+
+        def apply_focus():
+            self.git_remote_edit.setFocus()
+            self.git_remote_edit.selectAll()
+
+        QTimer.singleShot(0, apply_focus)
+
     def _toggle_key_visibility(self, show: bool):
         """Toggle API key visibility in input field."""
         if show:

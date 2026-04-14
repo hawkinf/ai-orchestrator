@@ -19,6 +19,7 @@ from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QCloseEvent
 
 from orchestrator.config import OrchestratorConfig, load_config
+from orchestrator.recommended_actions import ActionTarget, RecommendedAction
 from orchestrator.setup_validator import SetupValidationResult, SetupValidator
 
 from .mode_manager import InterfaceModeManager, MODE_SIMPLE
@@ -386,6 +387,7 @@ class MainWindow(QMainWindow):
         self.run_panel.checkpoint_reject.connect(self._on_checkpoint_reject)
         self.run_panel.open_folder.connect(self._open_run_folder)
         self.run_panel.get_list_panel().run_selected.connect(self._on_run_selected)
+        self.run_panel.action_requested.connect(self._execute_recommended_action)
 
         # Log viewer
         self.log_viewer.open_folder.connect(self._open_run_folder)
@@ -406,6 +408,7 @@ class MainWindow(QMainWindow):
         self.dashboard_panel.open_folder.connect(self._open_run_folder)
         self.dashboard_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
         self.dashboard_panel.navigate_to_new_task.connect(lambda: self._navigate("new_task"))
+        self.dashboard_panel.recommended_action_requested.connect(self._execute_recommended_action)
 
         # Checkpoints panel
         self.checkpoints_panel.checkpoint_approved.connect(self._on_checkpoint_approved_from_center)
@@ -1126,6 +1129,66 @@ class MainWindow(QMainWindow):
             subprocess.run(["open", str(logs_path)])
         else:
             subprocess.run(["xdg-open", str(logs_path)])
+
+    def _execute_recommended_action(self, action: RecommendedAction):
+        """Execute a recommended action emitted by the GUI."""
+        if not action:
+            return
+
+        action_type = action.action_type
+        payload = action.payload or {}
+
+        if action_type == "navigate":
+            self._navigate(action.target.value)
+            return
+
+        if action_type == "navigate_new_task":
+            self._navigate("new_task")
+            return
+
+        if action_type == "open_settings_tab":
+            self._navigate("settings")
+            tab_name = payload.get("tab", "")
+            if tab_name.lower() == "ambiente":
+                self.config_panel.focus_openai_configuration()
+            elif tab_name.lower() == "executor":
+                self.config_panel.focus_executor_configuration()
+            elif tab_name.lower() == "git":
+                self.config_panel.focus_git_configuration()
+            else:
+                self.config_panel.open_tab(tab_name)
+            return
+
+        if action_type == "filter_dashboard":
+            self._navigate("dashboard")
+            self.dashboard_panel.apply_quick_filter(
+                status=payload.get("status"),
+                profile=payload.get("profile"),
+                has_checkpoint=payload.get("has_checkpoint"),
+                has_error=payload.get("has_error"),
+                search_text=payload.get("search_text", ""),
+            )
+            return
+
+        if action_type == "open_run_tab":
+            run_id = payload.get("run_id") or action.context.run_id
+            if run_id:
+                self._navigate("runs")
+                self._on_run_selected(run_id)
+                self.run_panel.open_tab(payload.get("tab", "Visao Geral"))
+            return
+
+        if action_type == "navigate_replay":
+            self._navigate("replay")
+            run_id = payload.get("run_id") or action.context.run_id
+            if self.replay_panel and run_id:
+                self.replay_panel.select_run(run_id)
+            return
+
+        if action_type == "open_system_insights":
+            self._navigate("dashboard")
+            self.dashboard_panel._open_system_insights_panel()
+            return
 
     def closeEvent(self, event: QCloseEvent):
         """Handle window close."""

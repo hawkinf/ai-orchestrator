@@ -39,3 +39,12 @@ def test_help_panel_has_system_insights_section(qapp):
     panel.set_current_section("system_insights")
 
     assert "Insights do Sistema" in panel.content_browser.toPlainText()
+
+
+def test_help_panel_has_recommended_actions_section(qapp):
+    from gui.help_panel import HelpPanel
+
+    panel = HelpPanel()
+    panel.set_current_section("recommended_actions")
+
+    assert "Ações Recomendadas" in panel.content_browser.toPlainText()

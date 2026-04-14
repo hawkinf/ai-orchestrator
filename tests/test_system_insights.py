@@ -103,4 +103,5 @@ def test_system_insights_export_report(tmp_path):
 
     assert paths["json"].exists()
     assert paths["markdown"].exists()
+    assert paths["actions"].exists()
     assert "Insights do Sistema" in paths["markdown"].read_text(encoding="utf-8")

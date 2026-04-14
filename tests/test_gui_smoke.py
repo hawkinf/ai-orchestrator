@@ -396,6 +396,14 @@ class TestDashboardAndDiagnostics:
         assert panel.run_all_btn.text() == "Executar tudo"
         panel.close()
 
+    def test_run_panel_has_recommended_actions(self, qapp):
+        """RunPanel should expose recommended actions in the detail view."""
+        from gui.run_panel import RunPanel
+
+        panel = RunPanel()
+        assert panel.get_detail_panel().recommended_actions is not None
+        panel.close()
+
 
 class TestOpenAIConfigDialog:
     """Tests for the compact OpenAI configuration dialog."""
@@ -433,6 +441,29 @@ class TestMainWindowOpenAIFlow:
 
         assert window.stack.currentWidget() is window.config_panel
         assert window.config_panel.tabs.currentIndex() == window.config_panel._environment_tab_index
+        window.close()
+
+    def test_execute_recommended_action_opens_executor_settings(self, qapp):
+        """MainWindow should route recommended actions to the correct config tab."""
+        from gui.main_window import MainWindow
+        from orchestrator.recommended_actions import ActionPriority, ActionTarget, RecommendedAction
+
+        window = MainWindow(config=None, paths=None)
+        action = RecommendedAction(
+            id="act-1",
+            title="Abrir Configurações > Executor",
+            description="",
+            priority=ActionPriority.IMMEDIATE,
+            source_type="run_insight",
+            source_id="ins-1",
+            target=ActionTarget.SETTINGS,
+            action_type="open_settings_tab",
+            payload={"tab": "Executor"},
+        )
+        window._execute_recommended_action(action)
+
+        assert window.stack.currentWidget() is window.config_panel
+        assert window.config_panel.tabs.tabText(window.config_panel.tabs.currentIndex()) == "Executor"
         window.close()
 
 

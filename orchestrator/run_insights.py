@@ -773,6 +773,15 @@ class InsightsAnalyzer:
             f.write(report.to_markdown())
         exported["markdown"] = md_path
 
+        from orchestrator.recommended_actions import RecommendedActionsEngine
+
+        actions_path = final_dir / "recommended_actions.json"
+        RecommendedActionsEngine().export_group(
+            RecommendedActionsEngine().from_run_report(report),
+            actions_path,
+        )
+        exported["actions"] = actions_path
+
         logger.info(f"Exported insights to: {final_dir}")
         return exported
 

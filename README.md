@@ -180,6 +180,19 @@ Use the full view to:
 - export the report to `workspace/logs/system_insights_<timestamp>.json`
 - export the report to `workspace/logs/system_insights_<timestamp>.md`
 
+### Recommended Actions
+
+Run Insights and System Insights now feed a `Recommended Actions` layer in the GUI.
+
+This layer suggests practical next steps such as:
+
+- open `Configurações > Git`
+- open `Configurações > Executor`
+- open the `Validação`, `Git` or `Timeline` tab for a specific run
+- jump to `Diagnóstico`, `Checkpoints` or `Policies`
+- filter the dashboard to recent failed runs
+- open `Replay` already pointed at a specific run when possible
+
 ### Option B: CLI Integrated Mode
 
 Fully automated execution using OpenAI API and Claude Code CLI:

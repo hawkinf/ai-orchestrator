@@ -17,8 +17,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
+from orchestrator.recommended_actions import RecommendedActionsEngine
 from .ui_models import RunListItem, RunDetailViewModel
 from .styles import get_status_color, STATUS_COLORS
+from .recommended_actions_widget import RecommendedActionsWidget
 from .run_timeline_widget import RunTimelineWidget
 from .run_insights_widget import RunInsightsWidget
 
@@ -202,6 +204,7 @@ class RunDetailPanel(QWidget):
     open_folder = Signal(str)  # run_id
     run_resume = Signal(str)  # run_id
     open_artifact = Signal(str)  # file_path
+    action_requested = Signal(object)
 
     def __init__(self, parent=None, workspace_path: Optional[Path] = None):
         super().__init__(parent)
@@ -311,6 +314,10 @@ class RunDetailPanel(QWidget):
         actions_layout.addWidget(self.reject_btn)
 
         layout.addLayout(actions_layout)
+
+        self.recommended_actions = RecommendedActionsWidget()
+        self.recommended_actions.action_requested.connect(self.action_requested.emit)
+        layout.addWidget(self.recommended_actions)
 
     def _create_overview_tab(self) -> QWidget:
         """Create overview tab content."""
@@ -498,6 +505,13 @@ class RunDetailPanel(QWidget):
             self.timeline_widget.load_timeline(run.run_id)
             self.insights_widget.set_workspace(self._workspace_path)
             self.insights_widget.load_insights(run.run_id)
+            report = self.insights_widget.get_report()
+            if report:
+                self.recommended_actions.set_group(RecommendedActionsEngine().from_run_report(report))
+            else:
+                self.recommended_actions.clear_group()
+        else:
+            self.recommended_actions.clear_group()
 
         # Header
         self.title_label.setText(f"Run: {run.run_id}")
@@ -626,6 +640,15 @@ class RunDetailPanel(QWidget):
         self.reject_btn.setVisible(False)
         self.timeline_widget.clear_timeline()
         self.insights_widget.clear_insights()
+        self.recommended_actions.clear_group()
+
+    def open_tab(self, tab_name: str):
+        """Open a tab by visible name."""
+        normalized = tab_name.strip().lower()
+        for index in range(self.tabs.count()):
+            if self.tabs.tabText(index).strip().lower() == normalized:
+                self.tabs.setCurrentIndex(index)
+                break
 
     def _open_folder(self):
         """Open run folder."""
@@ -659,6 +682,7 @@ class RunPanel(QWidget):
     open_folder = Signal(str)
     run_resume = Signal(str)
     run_refresh = Signal()
+    action_requested = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -686,6 +710,7 @@ class RunPanel(QWidget):
         self.detail_panel.checkpoint_reject.connect(self.checkpoint_reject.emit)
         self.detail_panel.open_folder.connect(self.open_folder.emit)
         self.detail_panel.run_resume.connect(self.run_resume.emit)
+        self.detail_panel.action_requested.connect(self.action_requested.emit)
         splitter.addWidget(self.detail_panel)
 
         splitter.setSizes([300, 400])
@@ -720,3 +745,7 @@ class RunPanel(QWidget):
         """Set workspace path for artifact discovery."""
         self._workspace_path = workspace_path
         self.detail_panel.set_workspace_path(workspace_path)
+
+    def open_tab(self, tab_name: str):
+        """Open a tab in the detail panel."""
+        self.detail_panel.open_tab(tab_name)

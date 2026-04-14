@@ -216,9 +216,16 @@ class SystemInsightsAnalyzer:
         export_dir.mkdir(parents=True, exist_ok=True)
         json_path = export_dir / f"system_insights_{timestamp}.json"
         md_path = export_dir / f"system_insights_{timestamp}.md"
+        actions_path = export_dir / f"system_insights_actions_{timestamp}.json"
         json_path.write_text(json.dumps(report.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         md_path.write_text(report.to_markdown(), encoding="utf-8")
-        return {"json": json_path, "markdown": md_path}
+        from orchestrator.recommended_actions import RecommendedActionsEngine
+
+        RecommendedActionsEngine().export_group(
+            RecommendedActionsEngine().from_system_report(report),
+            actions_path,
+        )
+        return {"json": json_path, "markdown": md_path, "actions": actions_path}
 
     def _analyze_run(self, run: RunSummary) -> _AnalyzedRun:
         report = self.insights_analyzer.analyze_from_run_id(run.run_id)

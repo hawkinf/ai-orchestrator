@@ -272,6 +272,13 @@ class ReplayConfigPanel(QGroupBox):
             task = run.get("task_summary", run_id)[:50]
             self.run_combo.addItem(f"{run_id} - {task}", run_id)
 
+    def select_run(self, run_id: str):
+        """Select a specific run in the combo box."""
+        for index in range(self.run_combo.count()):
+            if self.run_combo.itemData(index) == run_id:
+                self.run_combo.setCurrentIndex(index)
+                break
+
     def get_config(self) -> tuple:
         """Get the configured replay settings."""
         run_id = self.run_combo.currentData()
@@ -736,6 +743,11 @@ class ReplayPanel(QWidget):
             self.comparison_view.show_result(result)
         else:
             self.comparison_view.clear()
+
+    def select_run(self, run_id: str):
+        """Select a run in the replay configuration and show the setup tab."""
+        self.tabs.setCurrentIndex(0)
+        self.config_panel.select_run(run_id)
 
     def _delete_selected(self):
         """Delete selected replay."""

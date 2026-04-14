@@ -372,6 +372,45 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="recommended_actions",
+        title="Como usar as Ações Recomendadas",
+        summary="Transforme sinais e alertas em próximos passos práticos dentro da aplicação.",
+        content="""
+<h2>Como usar as Ações Recomendadas</h2>
+
+<p>As <b>Ações Recomendadas</b> aparecem quando o app já conseguiu interpretar uma run ou o histórico recente do sistema.</p>
+
+<h3>O que elas fazem</h3>
+<ul>
+<li>Levam você para a <b>tela certa</b> da aplicação</li>
+<li>Abrem a <b>aba correta</b> quando isso ajuda</li>
+<li>Reduzem a dúvida sobre <b>o que fazer agora</b></li>
+</ul>
+
+<h3>Exemplos práticos</h3>
+<ul>
+<li><b>Falha de validação:</b> abrir a aba Validação da run ou enviar para Replay</li>
+<li><b>Problema de Git:</b> abrir Configurações &gt; Git ou Diagnóstico</li>
+<li><b>Checkpoints frequentes:</b> abrir o Centro de Checkpoints ou Policies</li>
+<li><b>Aumento de falhas:</b> filtrar o Dashboard por runs com falha</li>
+</ul>
+
+<h3>Prioridades</h3>
+<ul>
+<li><b>Agora:</b> ação de impacto imediato, geralmente para destravar o fluxo</li>
+<li><b>Recomendado:</b> melhora a chance da próxima run dar certo</li>
+<li><b>Opcional:</b> aprofundamento ou ajuste fino</li>
+</ul>
+
+<h3>Como decidir</h3>
+<ol>
+<li>Comece pelas ações <b>Agora</b></li>
+<li>Depois execute as ações <b>Recomendadas</b></li>
+<li>Use as <b>Opcionais</b> quando quiser explorar a causa com mais calma</li>
+</ol>
+""",
+    ),
+    HelpSection(
         key="insights",
         title="Como Interpretar os Insights",
         summary="Entenda os insights gerados após cada execução.",

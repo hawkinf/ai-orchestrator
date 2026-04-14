@@ -6,7 +6,7 @@ from datetime import datetime, time
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -23,11 +23,15 @@ from PySide6.QtWidgets import (
 )
 
 from orchestrator.run_index import RunStatus
+from orchestrator.recommended_actions import RecommendedActionsEngine
 from orchestrator.system_insights import SystemInsightReport, SystemInsightsAnalyzer, get_system_insights_analyzer, health_status_display, trend_direction_display
+from .recommended_actions_widget import RecommendedActionsWidget
 
 
 class SystemInsightsPanel(QWidget):
     """Detailed system insights view with filters and export."""
+
+    action_requested = Signal(object)
 
     def __init__(self, workspace_path: Optional[Path] = None, parent=None):
         super().__init__(parent)
@@ -225,8 +229,10 @@ class SystemInsightsPanel(QWidget):
         for index, metric in enumerate(self._report.metrics):
             self.metrics_grid.addWidget(self._create_metric_card(metric.label, metric.display_value, trend_direction_display(metric.direction)), index // 3, index % 3)
 
-        if self._report.top_recommendations:
-            self.scroll_layout.addWidget(self._create_actions_card(self._report.top_recommendations))
+        actions_widget = RecommendedActionsWidget()
+        actions_widget.action_requested.connect(self.action_requested.emit)
+        actions_widget.set_group(RecommendedActionsEngine().from_system_report(self._report))
+        self.scroll_layout.addWidget(actions_widget)
         for insight in self._report.insights:
             self.scroll_layout.addWidget(self._create_insight_card(insight.title, insight.message, insight.recommendation, insight.severity))
         self.scroll_layout.addStretch()
@@ -269,29 +275,17 @@ class SystemInsightsPanel(QWidget):
             layout.addWidget(recommendation)
         return frame
 
-    def _create_actions_card(self, recommendations: list[str]) -> QFrame:
-        frame = QFrame()
-        frame.setProperty("card", True)
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(6)
-        title = QLabel("Ações recomendadas")
-        title.setStyleSheet("font-size: 13px; font-weight: 600; color: #e6edf3;")
-        layout.addWidget(title)
-        for item in recommendations:
-            label = QLabel(f"• {item}")
-            label.setWordWrap(True)
-            label.setStyleSheet("font-size: 12px; color: #c9d1d9;")
-            layout.addWidget(label)
-        return frame
-
     def _export_report(self):
         if not self._report or not self.workspace_path:
             return
         try:
             analyzer = self._analyzer or get_system_insights_analyzer(self.workspace_path)
             paths = analyzer.export_report(self._report)
-            QMessageBox.information(self, "Exportar insights", f"Relatório exportado:\n- JSON: {paths['json'].name}\n- Markdown: {paths['markdown'].name}")
+            QMessageBox.information(
+                self,
+                "Exportar insights",
+                f"Relatório exportado:\n- JSON: {paths['json'].name}\n- Markdown: {paths['markdown'].name}\n- Ações: {paths['actions'].name}",
+            )
         except Exception as exc:
             QMessageBox.warning(self, "Erro ao exportar", str(exc))
 

@@ -391,6 +391,7 @@ class TestDashboardPanel:
         assert panel.filter_bar is not None
         assert panel.runs_table is not None
         assert panel.detail_preview is not None
+        assert hasattr(panel, "recommended_action_requested")
 
 
 class TestIntegration:
