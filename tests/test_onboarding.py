@@ -30,6 +30,11 @@ def test_onboarding_destination_switches(qapp, tmp_path):
     wizard.show()
     qapp.processEvents()
 
+    # Default should be first_task (recommended)
+    assert wizard.selected_destination() == "first_task"
+
+    # Switch to diagnostics
     wizard.finish_page.diagnostics_radio.setChecked(True)
+    qapp.processEvents()
 
     assert wizard.selected_destination() == "diagnostics"

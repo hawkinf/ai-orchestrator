@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -202,7 +203,7 @@ class WorkspaceGitPage(QWizardPage):
 class FinishPage(QWizardPage):
     def __init__(self):
         super().__init__()
-        self.next_destination = "new_task"
+        self.next_destination = "first_task"
         self.setTitle("Finalização")
         self.setSubTitle("Revise o resumo e escolha seu próximo passo.")
         layout = QVBoxLayout(self)
@@ -211,17 +212,66 @@ class FinishPage(QWizardPage):
         self.summary_label.setWordWrap(True)
         layout.addWidget(self.summary_label)
 
+        # Recommended action - highlighted
+        recommended_card = QFrame()
+        recommended_card.setProperty("card", True)
+        recommended_card.setStyleSheet("""
+            QFrame[card=true] {
+                background-color: #1a2332;
+                border: 1px solid #4f8cff;
+                border-radius: 6px;
+            }
+        """)
+        recommended_layout = QVBoxLayout(recommended_card)
+        recommended_layout.setContentsMargins(14, 12, 14, 12)
+
+        recommended_header = QLabel("Recomendado")
+        recommended_header.setStyleSheet("color: #4f8cff; font-size: 11px; font-weight: 600;")
+        recommended_layout.addWidget(recommended_header)
+
+        self.first_task_radio = QRadioButton("Criar minha primeira tarefa")
+        self.first_task_radio.setChecked(True)
+        self.first_task_radio.toggled.connect(self._update_destination)
+        self.first_task_radio.setStyleSheet("font-weight: 600;")
+        recommended_layout.addWidget(self.first_task_radio)
+
+        first_task_hint = QLabel("Fluxo guiado com exemplos prontos para sua primeira execução")
+        first_task_hint.setProperty("muted", True)
+        first_task_hint.setContentsMargins(24, 0, 0, 0)
+        recommended_layout.addWidget(first_task_hint)
+
+        layout.addWidget(recommended_card)
+
+        # Other options
         card = QFrame()
         card.setProperty("card", True)
         card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(14, 12, 14, 12)
+
+        other_header = QLabel("Outras opções")
+        other_header.setStyleSheet("color: #6b7280; font-size: 11px; font-weight: 600;")
+        card_layout.addWidget(other_header)
+
         self.new_task_radio = QRadioButton("Ir para Nova Tarefa")
-        self.new_task_radio.setChecked(True)
         self.new_task_radio.toggled.connect(self._update_destination)
         card_layout.addWidget(self.new_task_radio)
+
+        self.dashboard_radio = QRadioButton("Ir para Dashboard")
+        self.dashboard_radio.toggled.connect(self._update_destination)
+        card_layout.addWidget(self.dashboard_radio)
+
         self.diagnostics_radio = QRadioButton("Abrir Diagnóstico")
         self.diagnostics_radio.toggled.connect(self._update_destination)
         card_layout.addWidget(self.diagnostics_radio)
+
         layout.addWidget(card)
+
+        # Button group for mutual exclusivity
+        self.button_group = QButtonGroup(self)
+        self.button_group.addButton(self.first_task_radio)
+        self.button_group.addButton(self.new_task_radio)
+        self.button_group.addButton(self.dashboard_radio)
+        self.button_group.addButton(self.diagnostics_radio)
 
     def initializePage(self):
         project = self.field("project_path")
@@ -238,7 +288,14 @@ class FinishPage(QWizardPage):
         )
 
     def _update_destination(self):
-        self.next_destination = "diagnostics" if self.diagnostics_radio.isChecked() else "new_task"
+        if self.first_task_radio.isChecked():
+            self.next_destination = "first_task"
+        elif self.dashboard_radio.isChecked():
+            self.next_destination = "dashboard"
+        elif self.diagnostics_radio.isChecked():
+            self.next_destination = "diagnostics"
+        else:
+            self.next_destination = "new_task"
 
 
 class OnboardingWizard(QWizard):

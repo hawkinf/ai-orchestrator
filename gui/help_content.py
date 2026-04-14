@@ -166,6 +166,68 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="first_task",
+        title="Sua Primeira Tarefa",
+        summary="Guia completo para executar sua primeira tarefa com sucesso.",
+        content="""
+<h2>Sua Primeira Tarefa</h2>
+
+<h3>O que esperar</h3>
+<p>A primeira tarefa é o momento de conhecer o fluxo do sistema. Recomendamos começar com algo:</p>
+<ul>
+<li><b>Pequeno:</b> uma única funcionalidade ou correção</li>
+<li><b>Seguro:</b> sem exclusões ou migrações</li>
+<li><b>Observável:</b> onde você pode verificar o resultado facilmente</li>
+</ul>
+
+<h3>Exemplos recomendados por perfil</h3>
+
+<p><b>Flutter:</b></p>
+<ul>
+<li>"Revise a tela inicial, rode flutter analyze e flutter test, corrija erros simples."</li>
+<li>"Adicione comentários explicativos nas funções principais do projeto."</li>
+</ul>
+
+<p><b>Python:</b></p>
+<ul>
+<li>"Revise o módulo principal, execute pytest e ruff check, corrija falhas simples."</li>
+<li>"Adicione docstrings e type hints nas funções que estão faltando."</li>
+</ul>
+
+<p><b>Generic:</b></p>
+<ul>
+<li>"Analise a estrutura do projeto e sugira melhorias de organização."</li>
+<li>"Gere um relatório com os principais arquivos e suas responsabilidades."</li>
+</ul>
+
+<h3>O que evitar na primeira vez</h3>
+<ul>
+<li>Tarefas muito grandes ou ambiciosas</li>
+<li>Exclusões de arquivos ou dados</li>
+<li>Migrações de banco de dados</li>
+<li>Mudanças em branches protegidas</li>
+</ul>
+
+<h3>Passo a passo</h3>
+<ol>
+<li>Ao final do onboarding, clique em <b>Criar minha primeira tarefa</b></li>
+<li>Escolha o perfil do seu projeto</li>
+<li>Selecione um exemplo ou escreva sua própria tarefa</li>
+<li>Revise os detalhes e clique em <b>Executar</b></li>
+<li>Acompanhe o progresso no dashboard</li>
+<li>Ao final, veja o relatório e os artefatos gerados</li>
+</ol>
+
+<h3>Depois da primeira tarefa</h3>
+<p>Após completar sua primeira execução, você poderá:</p>
+<ul>
+<li>Ver os artefatos gerados na pasta de runs</li>
+<li>Criar novas tarefas com mais confiança</li>
+<li>Explorar o modo avançado quando precisar de mais controle</li>
+</ul>
+""",
+    ),
+    HelpSection(
         key="tasks",
         title="Como Criar Uma Tarefa",
         summary="O que escrever e como decidir entre simples e avançado.",

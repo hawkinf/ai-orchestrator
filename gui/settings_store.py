@@ -45,6 +45,9 @@ class SettingsStore:
                     onboarding_completed=data.get("onboarding_completed", False),
                     sidebar_collapsed=data.get("sidebar_collapsed", False),
                     show_advanced_options=data.get("show_advanced_options", False),
+                    first_task_completed=data.get("first_task_completed", False),
+                    first_task_run_id=data.get("first_task_run_id"),
+                    show_first_run_hints=data.get("show_first_run_hints", True),
                     recent_projects=data.get("recent_projects", []),
                     recent_tasks=data.get("recent_tasks", []),
                 )
@@ -73,6 +76,9 @@ class SettingsStore:
             "onboarding_completed": prefs.onboarding_completed,
             "sidebar_collapsed": prefs.sidebar_collapsed,
             "show_advanced_options": prefs.show_advanced_options,
+            "first_task_completed": prefs.first_task_completed,
+            "first_task_run_id": prefs.first_task_run_id,
+            "show_first_run_hints": prefs.show_first_run_hints,
             "recent_projects": prefs.recent_projects[:self.MAX_RECENT_ITEMS],
             "recent_tasks": prefs.recent_tasks[:self.MAX_RECENT_ITEMS],
         }
@@ -150,6 +156,24 @@ class SettingsStore:
         prefs = self.load_preferences()
         prefs.onboarding_completed = completed
         self.save_preferences(prefs)
+
+    def mark_first_task_completed(self, run_id: str):
+        """Mark that the user has completed their first task."""
+        prefs = self.load_preferences()
+        prefs.first_task_completed = True
+        prefs.first_task_run_id = run_id
+        self.save_preferences(prefs)
+
+    def set_show_first_run_hints(self, show: bool):
+        """Set whether to show first run hints."""
+        prefs = self.load_preferences()
+        prefs.show_first_run_hints = show
+        self.save_preferences(prefs)
+
+    def is_first_task_pending(self) -> bool:
+        """Check if the user has not yet completed their first task."""
+        prefs = self.load_preferences()
+        return prefs.onboarding_completed and not prefs.first_task_completed
 
 
 def config_to_settings(config) -> SettingsViewModel:

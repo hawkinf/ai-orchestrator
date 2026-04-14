@@ -23,6 +23,7 @@ from orchestrator.setup_validator import SetupValidationResult, SetupValidator
 
 from .mode_manager import InterfaceModeManager, MODE_SIMPLE
 from .onboarding_wizard import OnboardingWizard
+from .first_task_wizard import FirstTaskWizard, FirstRunCompletionDialog
 from .styles import MAIN_STYLESHEET, get_status_color
 from .ui_models import (
     RunListItem, RunDetailViewModel, TaskConfig, ProgressEvent,
@@ -715,21 +716,32 @@ class MainWindow(QMainWindow):
         # Re-enable submit
         self.task_panel.set_submitting(False)
 
-        # Build completion message
-        message_parts = ["Tarefa concluida com sucesso!"]
-        if summary.get("objective"):
-            message_parts.append(f"\nObjetivo: {summary['objective'][:100]}")
-        if summary.get("iterations"):
-            message_parts.append(f"\nIteracoes: {summary['iterations']}")
-        if summary.get("commit_hash"):
-            message_parts.append(f"\nCommit: {summary['commit_hash'][:8]}")
-
-        QMessageBox.information(self, "Sucesso", "\n".join(message_parts))
-
         # Refresh and navigate
         self._refresh_runs()
         self._check_checkpoints()
-        self._navigate("runs")
+
+        # Check if this is the first task
+        is_first_task = False
+        if self.settings_store:
+            prefs = self.settings_store.load_preferences()
+            is_first_task = not prefs.first_task_completed
+
+        if is_first_task:
+            # Show first run completion dialog
+            summary_text = summary.get("objective", "Tarefa concluída com sucesso!")
+            self._show_first_run_completion(run_id, True, summary_text)
+        else:
+            # Build completion message
+            message_parts = ["Tarefa concluida com sucesso!"]
+            if summary.get("objective"):
+                message_parts.append(f"\nObjetivo: {summary['objective'][:100]}")
+            if summary.get("iterations"):
+                message_parts.append(f"\nIteracoes: {summary['iterations']}")
+            if summary.get("commit_hash"):
+                message_parts.append(f"\nCommit: {summary['commit_hash'][:8]}")
+
+            QMessageBox.information(self, "Sucesso", "\n".join(message_parts))
+            self._navigate("runs")
 
         # Select the completed run
         self._on_run_selected(run_id)
@@ -1200,7 +1212,12 @@ class MainWindow(QMainWindow):
             if self.settings_store:
                 self.settings_store.mark_onboarding_completed(True)
             self._validate_minimum_setup()
-            self._navigate(wizard.selected_destination())
+
+            destination = wizard.selected_destination()
+            if destination == "first_task":
+                self._run_first_task_wizard()
+            else:
+                self._navigate(destination)
 
     def _settings_to_config_payload(self, settings) -> dict:
         """Build a config payload suitable for config.yaml."""
@@ -1271,3 +1288,59 @@ class MainWindow(QMainWindow):
         prefs.interface_mode = self._interface_mode
         prefs.show_advanced_options = self.task_panel.settings_section.isVisible()
         self.settings_store.save_preferences(prefs)
+
+    def _run_first_task_wizard(self):
+        """Launch the first task wizard for guided first run."""
+        wizard = FirstTaskWizard(self._project_path or Path.cwd(), self)
+        wizard.task_submitted.connect(self._on_first_task_submitted)
+
+        if wizard.exec():
+            # Task was submitted through the wizard
+            pass
+        else:
+            # User skipped, go to new task panel
+            self._navigate("new_task")
+
+    @Slot(str, str)
+    def _on_first_task_submitted(self, task_text: str, profile: str):
+        """Handle task submission from first task wizard."""
+        # Pre-fill the task panel
+        self.task_panel.set_task_text(task_text)
+        self.task_panel.profile_combo.setCurrentText(profile)
+
+        # Navigate to task panel and submit
+        self._navigate("new_task")
+
+        # Create the task config and submit
+        config = TaskConfig(
+            task_description=task_text,
+            project_path=str(self._project_path or "."),
+            profile=profile,
+            max_iterations=3,
+            auto_validate=True,
+            auto_commit=False,
+            auto_push=False,
+            require_approval_destructive=True,
+        )
+
+        self._on_task_submitted(config)
+
+    def _show_first_run_completion(self, run_id: str, success: bool, summary: str):
+        """Show completion dialog after first run."""
+        if not self.settings_store:
+            return
+
+        prefs = self.settings_store.load_preferences()
+        if prefs.first_task_completed:
+            return  # Already completed before
+
+        # Mark first task as completed
+        self.settings_store.mark_first_task_completed(run_id)
+
+        # Show completion dialog
+        dialog = FirstRunCompletionDialog(run_id, success, summary, self)
+        dialog.open_dashboard.connect(lambda: self._navigate("dashboard"))
+        dialog.create_new_task.connect(lambda: self._navigate("new_task"))
+        dialog.open_artifacts.connect(self._open_run_folder)
+        dialog.open_manual.connect(lambda: self._navigate("help"))
+        dialog.exec()

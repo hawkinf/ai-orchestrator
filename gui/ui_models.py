@@ -186,6 +186,11 @@ class UIPreferences:
     sidebar_collapsed: bool = False
     show_advanced_options: bool = False
 
+    # First task tracking
+    first_task_completed: bool = False
+    first_task_run_id: Optional[str] = None
+    show_first_run_hints: bool = True
+
     # Recent items
     recent_projects: List[str] = field(default_factory=list)
     recent_tasks: List[str] = field(default_factory=list)
