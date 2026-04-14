@@ -160,6 +160,15 @@ Operational behavior:
 - `Gerar Pacote` creates a support-ready zip for later analysis.
 - Unhandled GUI exceptions now receive an error id and a copyable details dialog.
 
+## Feedback
+
+The Command Center now includes a direct `Enviar feedback` action for end users.
+
+- The dialog collects `bug`, `sugestão` or `dúvida` with a free-text description.
+- When the checkbox is enabled, the app generates a fresh diagnostic package automatically and links it to the feedback record.
+- Feedback is saved locally under `workspace/feedback/feedback_<timestamp>.json`.
+- The dialog also supports copying the generated JSON content and opening the feedback folder for later sharing.
+
 ## Installation
 
 For local development:

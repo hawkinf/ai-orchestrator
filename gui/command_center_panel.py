@@ -264,6 +264,7 @@ class CommandCenterPanel(QWidget):
     open_diagnostics = Signal()
     open_system_insights = Signal()
     open_runs = Signal()
+    open_feedback = Signal()
     recommended_action_requested = Signal(object)
 
     def __init__(self, parent=None):
@@ -364,6 +365,12 @@ class CommandCenterPanel(QWidget):
         self.refresh_btn.setProperty("secondary", True)
         self.refresh_btn.clicked.connect(self.refresh)
         cta_row.addWidget(self.refresh_btn)
+
+        self.feedback_btn = QPushButton("Enviar feedback")
+        self.feedback_btn.setProperty("secondary", True)
+        self.feedback_btn.clicked.connect(self.open_feedback.emit)
+        cta_row.addWidget(self.feedback_btn)
+
         cta_row.addStretch()
         self.content_layout.addLayout(cta_row)
 

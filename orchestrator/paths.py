@@ -20,6 +20,7 @@ class OrchestratorPaths:
             self.prompts_dir,
             self.reports_dir,
             self.audits_dir,
+            self.feedback_dir,
             self.logs_dir,
             self.diagnostics_dir,
             self.state_dir,
@@ -46,6 +47,10 @@ class OrchestratorPaths:
     @property
     def audits_dir(self) -> Path:
         return self.workspace_root / "audits"
+
+    @property
+    def feedback_dir(self) -> Path:
+        return self.workspace_root / "feedback"
 
     @property
     def logs_dir(self) -> Path:

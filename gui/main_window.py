@@ -44,6 +44,7 @@ from .log_viewer import LogViewer
 from .checkpoint_dialog import CheckpointDialog, CheckpointNotification
 from .worker import WorkerManager, RunWorker, RunWorkerSignals
 from .help_panel import HelpPanel
+from .feedback_dialog import FeedbackDialog
 from .diagnostics_panel import DiagnosticsPanel
 from .dashboard_panel import DashboardPanel
 from .openai_config_dialog import OpenAIConfigRequiredDialog
@@ -406,6 +407,7 @@ class MainWindow(QMainWindow):
         self.command_center_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
         self.command_center_panel.open_system_insights.connect(self._open_system_insights_from_command_center)
         self.command_center_panel.open_runs.connect(lambda: self._navigate("runs"))
+        self.command_center_panel.open_feedback.connect(self._open_feedback_dialog)
         self.command_center_panel.run_selected.connect(self._on_dashboard_run_selected)
         self.command_center_panel.recommended_action_requested.connect(self._execute_recommended_action)
 
@@ -624,6 +626,23 @@ class MainWindow(QMainWindow):
 
         if silent and result.status == UpdateStatus.UPDATE_AVAILABLE:
             self._open_update_dialog(result)
+
+    def _open_feedback_dialog(self):
+        """Open the feedback dialog."""
+        if not self.paths:
+            QMessageBox.warning(self, "Aviso", "Workspace indisponível para salvar feedback.")
+            return
+
+        preferences_path = self.paths.workspace_root / SettingsStore.DEFAULT_PREFS_FILE
+        dialog = FeedbackDialog(
+            paths=self.paths,
+            version_info=self.version_info,
+            config_path=self._config_path,
+            preferences_path=preferences_path,
+            parent=self,
+        )
+        self.observability.record_user_action("open_feedback_dialog")
+        dialog.exec()
 
     def _finish_update_install(self, result: UpdateResult, dialog: UpdateDialog):
         """Handle update install preparation completion."""

@@ -110,3 +110,16 @@ def test_command_center_empty_workspace_state(qapp):
     qapp.processEvents()
 
     assert "histórico suficiente" in panel.executive_summary.text().lower()
+
+
+def test_command_center_feedback_button_emits_signal(qapp):
+    from gui.command_center_panel import CommandCenterPanel
+
+    panel = CommandCenterPanel()
+    emitted = []
+    panel.open_feedback.connect(lambda: emitted.append(True))
+
+    panel.feedback_btn.click()
+    qapp.processEvents()
+
+    assert emitted == [True]
