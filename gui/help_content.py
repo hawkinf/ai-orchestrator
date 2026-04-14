@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -13,6 +14,96 @@ class HelpSection:
     content: str
 
 
+# Contextual help definitions for tooltips and field helpers
+CONTEXTUAL_HELP = {
+    "profile": {
+        "label": "Perfil do projeto",
+        "short": "Define validações e contexto padrão.",
+        "detail": "Use flutter para apps Flutter, python para projetos Python e generic para fluxos sem linguagem específica.",
+    },
+    "max_iterations": {
+        "label": "Máximo de iterações",
+        "short": "Tentativas automáticas antes de parar.",
+        "detail": "Aumente apenas quando quiser que o sistema insista mais em resolver o problema automaticamente.",
+    },
+    "auto_validate": {
+        "label": "Validar automaticamente",
+        "short": "Executa testes ao final.",
+        "detail": "Roda os comandos de validação do perfil (como flutter analyze ou pytest) quando a tarefa termina.",
+    },
+    "auto_commit": {
+        "label": "Commit automático",
+        "short": "Cria commit se a validação passar.",
+        "detail": "Só funciona com Git configurado. O commit usa a descrição da tarefa como mensagem.",
+    },
+    "auto_push": {
+        "label": "Push automático",
+        "short": "Envia para o remoto ao final.",
+        "detail": "Só funciona com commit automático ativo e Git com remote configurado.",
+    },
+    "require_approval": {
+        "label": "Exigir aprovação",
+        "short": "Pausa antes de ações críticas.",
+        "detail": "Cria checkpoints quando detecta exclusões, migrações ou outras ações destrutivas.",
+    },
+    "planner_model": {
+        "label": "Modelo do planner",
+        "short": "Modelo OpenAI para planejamento.",
+        "detail": "O planner entende sua tarefa e propõe a estratégia. Modelos maiores tendem a produzir planos melhores.",
+    },
+    "reviewer_model": {
+        "label": "Modelo do reviewer",
+        "short": "Modelo OpenAI para revisão.",
+        "detail": "O reviewer verifica a execução e destaca riscos, qualidade e pendências.",
+    },
+    "planner_timeout": {
+        "label": "Timeout do planner",
+        "short": "Tempo máximo de espera.",
+        "detail": "Quanto tempo esperar pela resposta do planner antes de considerar timeout.",
+    },
+    "reviewer_timeout": {
+        "label": "Timeout do reviewer",
+        "short": "Tempo máximo de espera.",
+        "detail": "Quanto tempo esperar pela resposta do reviewer antes de considerar timeout.",
+    },
+    "executor_command": {
+        "label": "Comando do executor",
+        "short": "Como chamar o Claude CLI.",
+        "detail": "O comando usado para invocar o Claude Code CLI. Geralmente é 'claude'.",
+    },
+    "executor_timeout": {
+        "label": "Timeout do executor",
+        "short": "Tempo máximo da execução.",
+        "detail": "Quanto tempo esperar pela conclusão da execução antes de considerar timeout.",
+    },
+    "workspace": {
+        "label": "Workspace",
+        "short": "Pasta para logs e artefatos.",
+        "detail": "O workspace guarda histórico de execuções, logs e relatórios. Precisa de permissão de escrita.",
+    },
+    "command_allowlist": {
+        "label": "Allowlist de comandos",
+        "short": "Comandos permitidos pelo executor.",
+        "detail": "Lista de comandos que o executor pode rodar. Use para restringir ações em ambientes sensíveis.",
+    },
+    "replay_mode": {
+        "label": "Modo replay",
+        "short": "Reproduzir execuções antigas.",
+        "detail": "Permite simular ou reexecutar fluxos anteriores para comparar resultados ou entender regressões.",
+    },
+    "policy_engine": {
+        "label": "Policy engine",
+        "short": "Regras de governança.",
+        "detail": "Permite definir políticas que analisam execuções com regras mais detalhadas. Útil para times.",
+    },
+}
+
+
+def get_contextual_help(key: str) -> Optional[dict]:
+    """Return contextual help for a given field key."""
+    return CONTEXTUAL_HELP.get(key)
+
+
 HELP_SECTIONS = [
     HelpSection(
         key="overview",
@@ -21,8 +112,27 @@ HELP_SECTIONS = [
         content="""
 <h2>Visão Geral</h2>
 <p>O AI Orchestrator coordena um fluxo de desenvolvimento assistido por IA com foco em execução local e controle do usuário.</p>
-<p><b>Fluxo básico:</b> tarefa → planner → executor → review → validação → commit/push</p>
-<p>Na prática, você descreve o objetivo, o planner organiza a estratégia, o executor implementa, o reviewer confere, a validação roda os checks do projeto e o Git fecha o ciclo quando configurado.</p>
+
+<h3>Fluxo básico</h3>
+<p><b>tarefa → planner → executor → review → validação → commit/push</b></p>
+
+<h3>O que cada etapa faz</h3>
+<ol>
+<li><b>Tarefa:</b> você descreve o objetivo de forma clara</li>
+<li><b>Planner:</b> a IA organiza a estratégia de implementação</li>
+<li><b>Executor:</b> o Claude Code aplica as mudanças no código</li>
+<li><b>Reviewer:</b> a IA confere o resultado e destaca riscos</li>
+<li><b>Validação:</b> os checks do projeto rodam (testes, lint, etc)</li>
+<li><b>Git:</b> commit e push quando configurado</li>
+</ol>
+
+<h3>Por que usar?</h3>
+<ul>
+<li>Mantém rastreabilidade de tudo que foi feito</li>
+<li>Reduz tentativa e erro manual</li>
+<li>Cria checkpoints antes de ações destrutivas</li>
+<li>Valida automaticamente antes de commitar</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -31,14 +141,28 @@ HELP_SECTIONS = [
         summary="Como sair da primeira abertura até a primeira tarefa.",
         content="""
 <h2>Primeiros Passos</h2>
+
+<h3>Checklist de primeira execução</h3>
 <ol>
-<li>Abra o onboarding e escolha a pasta do projeto.</li>
-<li>Selecione o perfil do projeto: flutter, python ou generic.</li>
-<li>Configure a chave da OpenAI.</li>
-<li>Confirme o comando do Claude executor.</li>
-<li>Revise o checklist mínimo e siga para Nova Tarefa.</li>
+<li>✓ Abra o <b>onboarding</b> e escolha a pasta do projeto</li>
+<li>✓ Selecione o <b>perfil</b>: flutter, python ou generic</li>
+<li>✓ Configure a <b>chave da OpenAI</b></li>
+<li>✓ Confirme o <b>comando do Claude</b> executor</li>
+<li>✓ Revise o <b>checklist mínimo</b> em Configurações</li>
 </ol>
-<p>Se preferir, você pode reabrir o onboarding em <b>Configurações</b>.</p>
+
+<h3>Dica rápida</h3>
+<p>Se você fechou o onboarding ou quer refazer, use o botão <b>Executar onboarding novamente</b> em Configurações.</p>
+
+<h3>Configuração mínima recomendada</h3>
+<ul>
+<li><b>Projeto:</b> pasta raiz do código</li>
+<li><b>Perfil:</b> flutter, python ou generic</li>
+<li><b>OpenAI:</b> chave válida configurada</li>
+<li><b>Executor:</b> comando claude disponível</li>
+<li><b>Workspace:</b> pasta com permissão de escrita</li>
+<li><b>Git:</b> opcional, mas recomendado para commit/push</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -47,9 +171,33 @@ HELP_SECTIONS = [
         summary="O que escrever e como decidir entre simples e avançado.",
         content="""
 <h2>Como Criar Uma Tarefa</h2>
-<p>No modo simples, você precisa apenas da descrição da tarefa e do botão <b>Executar</b>.</p>
-<p>Abra o modo avançado quando quiser escolher diretório, perfil, número de iterações ou automações como validação, commit e push.</p>
-<p>Uma boa tarefa descreve: problema, resultado esperado e restrições importantes.</p>
+
+<h3>Modo simples</h3>
+<p>Basta escrever a descrição e clicar <b>Executar</b>. O sistema usa os padrões.</p>
+
+<h3>Modo avançado</h3>
+<p>Abra quando precisar ajustar:</p>
+<ul>
+<li>Diretório específico</li>
+<li>Perfil diferente</li>
+<li>Número de iterações</li>
+<li>Automações (validar, commit, push)</li>
+</ul>
+
+<h3>Como escrever uma boa tarefa</h3>
+<p>Uma tarefa bem escrita inclui:</p>
+<ol>
+<li><b>O problema ou objetivo:</b> o que precisa ser feito</li>
+<li><b>O resultado esperado:</b> como saber se funcionou</li>
+<li><b>Restrições importantes:</b> o que não pode acontecer</li>
+</ol>
+
+<h3>Exemplos de tarefas</h3>
+<p><b>Boa:</b> "Corrigir o bug de login onde o usuário não consegue entrar quando a senha tem caractere especial. Adicionar teste para esse caso."</p>
+<p><b>Ruim:</b> "Corrigir login"</p>
+
+<p><b>Boa:</b> "Criar endpoint GET /api/users com paginação. Retornar no máximo 20 itens por página. Incluir contagem total no header X-Total-Count."</p>
+<p><b>Ruim:</b> "Criar API de usuários"</p>
 """,
     ),
     HelpSection(
@@ -58,10 +206,36 @@ HELP_SECTIONS = [
         summary="O papel de cada etapa do pipeline.",
         content="""
 <h2>Planner, Executor e Reviewer</h2>
-<p><b>Planner:</b> entende o pedido e propõe a estratégia.</p>
-<p><b>Executor:</b> aplica as mudanças no código usando o comando configurado.</p>
-<p><b>Reviewer:</b> faz a revisão final e destaca riscos, pendências e qualidade.</p>
-<p>Essas etapas existem para reduzir tentativa e erro e manter rastreabilidade.</p>
+
+<h3>Planner (OpenAI)</h3>
+<ul>
+<li>Entende o pedido e analisa o contexto</li>
+<li>Propõe a estratégia de implementação</li>
+<li>Define o escopo e os passos necessários</li>
+<li>Identifica riscos e dependências</li>
+</ul>
+<p><i>Modelo padrão: gpt-4o</i></p>
+
+<h3>Executor (Claude Code)</h3>
+<ul>
+<li>Aplica as mudanças no código</li>
+<li>Segue o plano definido pelo planner</li>
+<li>Cria, edita e remove arquivos</li>
+<li>Executa comandos quando necessário</li>
+</ul>
+<p><i>Comando padrão: claude</i></p>
+
+<h3>Reviewer (OpenAI)</h3>
+<ul>
+<li>Analisa o resultado da execução</li>
+<li>Verifica qualidade e completude</li>
+<li>Destaca riscos e pendências</li>
+<li>Decide se aprova ou pede correções</li>
+</ul>
+<p><i>Modelo padrão: gpt-4o</i></p>
+
+<h3>Por que três etapas?</h3>
+<p>Separar planejamento, execução e revisão reduz erros, mantém rastreabilidade e permite que cada etapa use o modelo mais adequado.</p>
 """,
     ),
     HelpSection(
@@ -70,9 +244,36 @@ HELP_SECTIONS = [
         summary="Quando a execução pausa para pedir aprovação.",
         content="""
 <h2>Checkpoints</h2>
-<p>O app cria checkpoints quando detecta ações sensíveis, como exclusões, migrações ou comandos destrutivos.</p>
-<p>Quando isso acontece, a execução pausa e pede sua aprovação antes de continuar.</p>
-<p>No modo simples, pense neles como uma proteção extra. No avançado, você pode ajustar os gatilhos.</p>
+
+<h3>O que são</h3>
+<p>Checkpoints são pontos de pausa onde o sistema pede sua aprovação antes de continuar.</p>
+
+<h3>Quando acontecem</h3>
+<p>O app cria checkpoints quando detecta:</p>
+<ul>
+<li><b>Exclusões:</b> delete, remove, drop</li>
+<li><b>Migrações:</b> migration, migrate</li>
+<li><b>Ações destrutivas:</b> force push, reset</li>
+<li><b>Gatilhos customizados:</b> configuráveis em Segurança</li>
+</ul>
+
+<h3>Como aprovar</h3>
+<ol>
+<li>Uma notificação aparece no topo da tela</li>
+<li>Revise a descrição do checkpoint</li>
+<li>Clique em <b>Aprovar</b> ou <b>Rejeitar</b></li>
+<li>Opcionalmente, adicione uma nota</li>
+</ol>
+
+<h3>Gerenciando checkpoints</h3>
+<p>Use a tela <b>Checkpoints</b> para ver todos os checkpoints pendentes e histórico de aprovações.</p>
+
+<h3>Configuração</h3>
+<p>Em <b>Configurações → Segurança</b> você pode:</p>
+<ul>
+<li>Ativar/desativar aprovação obrigatória</li>
+<li>Adicionar gatilhos customizados</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -81,8 +282,26 @@ HELP_SECTIONS = [
         summary="Regras adicionais para governança e segurança.",
         content="""
 <h2>Policies</h2>
-<p>Policies permitem analisar execuções com regras mais detalhadas. Esse painel é mais útil para times ou fluxos que exigem governança explícita.</p>
-<p>No modo simples ele fica oculto para reduzir ruído.</p>
+
+<h3>O que são</h3>
+<p>Policies são regras que analisam execuções com critérios mais detalhados que os checkpoints padrão.</p>
+
+<h3>Quando usar</h3>
+<ul>
+<li>Times que precisam de governança explícita</li>
+<li>Ambientes com requisitos de compliance</li>
+<li>Fluxos que exigem auditoria detalhada</li>
+</ul>
+
+<h3>Exemplos de policies</h3>
+<ul>
+<li>Bloquear push para branches protegidas</li>
+<li>Exigir revisão para mudanças em arquivos sensíveis</li>
+<li>Limitar comandos que podem ser executados</li>
+</ul>
+
+<h3>Onde encontrar</h3>
+<p>O painel <b>Políticas</b> fica no menu lateral, mas só aparece no <b>modo avançado</b>.</p>
 """,
     ),
     HelpSection(
@@ -91,8 +310,28 @@ HELP_SECTIONS = [
         summary="Simular ou reexecutar fluxos antigos.",
         content="""
 <h2>Replay</h2>
-<p>O replay permite reproduzir uma execução anterior para comparar resultado, entender regressões ou analisar o comportamento do fluxo.</p>
-<p>É uma ferramenta avançada e por isso fica fora do modo simples.</p>
+
+<h3>O que é</h3>
+<p>O replay permite reproduzir uma execução anterior para análise ou comparação.</p>
+
+<h3>Quando usar</h3>
+<ul>
+<li>Entender o que aconteceu em uma execução passada</li>
+<li>Comparar resultados entre execuções</li>
+<li>Analisar regressões</li>
+<li>Testar mudanças em policies</li>
+</ul>
+
+<h3>Como usar</h3>
+<ol>
+<li>Vá para o painel <b>Replay</b></li>
+<li>Selecione uma execução anterior</li>
+<li>Escolha o modo de replay</li>
+<li>Execute e compare os resultados</li>
+</ol>
+
+<h3>Onde encontrar</h3>
+<p>O painel <b>Replay</b> fica no menu lateral, mas só aparece no <b>modo avançado</b>.</p>
 """,
     ),
     HelpSection(
@@ -101,8 +340,30 @@ HELP_SECTIONS = [
         summary="Como validar ambiente, OpenAI, executor, workspace e Git.",
         content="""
 <h2>Diagnóstico</h2>
-<p>Use a tela de Diagnóstico para testar o ambiente inteiro ou checks individuais.</p>
-<p>Ela é o melhor lugar para confirmar se OpenAI, Claude, workspace e Git estão prontos antes de iniciar automações mais agressivas.</p>
+
+<h3>O que verifica</h3>
+<ul>
+<li><b>OpenAI:</b> chave válida e conectividade</li>
+<li><b>Claude:</b> executor disponível e funcional</li>
+<li><b>Workspace:</b> pasta acessível com permissão de escrita</li>
+<li><b>Git:</b> repositório, remote e branch</li>
+<li><b>Perfil:</b> comandos de validação configurados</li>
+</ul>
+
+<h3>Quando usar</h3>
+<ul>
+<li>Antes de começar a usar o app</li>
+<li>Quando algo parar de funcionar</li>
+<li>Depois de mudar configurações</li>
+<li>Para confirmar que tudo está pronto</li>
+</ul>
+
+<h3>Como interpretar</h3>
+<ul>
+<li><span style='color:#22c55e'>Verde:</span> OK, pronto para uso</li>
+<li><span style='color:#f59e0b'>Amarelo:</span> Warning, funciona mas com limitações</li>
+<li><span style='color:#ef4444'>Vermelho:</span> Erro, precisa corrigir antes de usar</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -111,8 +372,34 @@ HELP_SECTIONS = [
         summary="Onde informar a chave e como validar a conexão.",
         content="""
 <h2>Configurar OpenAI</h2>
-<p>Você pode informar a chave em <b>Configurações → Ambiente</b> ou criar um arquivo <code>.env</code> com <code>OPENAI_API_KEY=...</code>.</p>
-<p>Depois, use o teste da tela Ambiente ou do onboarding para validar a configuração.</p>
+
+<h3>Onde configurar</h3>
+<ul>
+<li><b>Onboarding:</b> na etapa de OpenAI</li>
+<li><b>Configurações → Ambiente:</b> campo de API Key</li>
+<li><b>Arquivo .env:</b> <code>OPENAI_API_KEY=sk-...</code></li>
+<li><b>Variável de sistema:</b> OPENAI_API_KEY</li>
+</ul>
+
+<h3>Prioridade de resolução</h3>
+<ol>
+<li>Variável de ambiente do sistema</li>
+<li>Arquivo .env na pasta do projeto</li>
+</ol>
+
+<h3>Como testar</h3>
+<ol>
+<li>Vá em <b>Configurações → Ambiente</b></li>
+<li>Clique em <b>Testar Conexão</b></li>
+<li>Verifique se o status fica verde</li>
+</ol>
+
+<h3>Problemas comuns</h3>
+<ul>
+<li><b>Chave inválida:</b> revise o formato sk-...</li>
+<li><b>Chave expirada:</b> gere uma nova no painel da OpenAI</li>
+<li><b>Sem créditos:</b> adicione créditos na conta OpenAI</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -121,8 +408,36 @@ HELP_SECTIONS = [
         summary="Como confirmar o executor e o comando correto.",
         content="""
 <h2>Configurar Claude</h2>
-<p>Defina o comando do executor em <b>Configurações → Executor</b>. O padrão é <code>claude</code>.</p>
-<p>Se o comando não estiver disponível no PATH, o checklist mínimo e o onboarding vão alertar você.</p>
+
+<h3>Requisitos</h3>
+<ul>
+<li>Claude Code CLI instalado</li>
+<li>Comando disponível no PATH</li>
+<li>Autenticação configurada</li>
+</ul>
+
+<h3>Onde configurar</h3>
+<ul>
+<li><b>Onboarding:</b> na etapa de Executor</li>
+<li><b>Configurações → Executor:</b> campo de comando</li>
+</ul>
+
+<h3>Como testar</h3>
+<ol>
+<li>Abra um terminal</li>
+<li>Digite <code>claude --version</code></li>
+<li>Verifique se retorna a versão</li>
+</ol>
+
+<h3>Problemas comuns</h3>
+<ul>
+<li><b>Comando não encontrado:</b> instale o Claude Code CLI</li>
+<li><b>Não autenticado:</b> rode <code>claude auth</code></li>
+<li><b>PATH incorreto:</b> adicione o diretório do claude ao PATH</li>
+</ul>
+
+<h3>Comando alternativo</h3>
+<p>Se o comando não é <code>claude</code>, informe o caminho completo ou o nome correto em Configurações.</p>
 """,
     ),
     HelpSection(
@@ -131,8 +446,30 @@ HELP_SECTIONS = [
         summary="Remote, branch, proteção e quando o Git é opcional.",
         content="""
 <h2>Configurar Git</h2>
-<p>Git é recomendado para usar commit e push automáticos, mas o app ainda consegue executar tarefas sem repositório.</p>
-<p>Em <b>Configurações → Git</b> você ajusta remote, branch, branches protegidas e automações.</p>
+
+<h3>Git é obrigatório?</h3>
+<p><b>Não.</b> O app funciona sem Git, mas você perde:</p>
+<ul>
+<li>Commit automático</li>
+<li>Push automático</li>
+<li>Proteção de branches</li>
+</ul>
+
+<h3>Configurações disponíveis</h3>
+<ul>
+<li><b>Remote:</b> nome do remote (padrão: origin)</li>
+<li><b>Branch:</b> branch preferida para operações</li>
+<li><b>Branches protegidas:</b> main, master, etc</li>
+</ul>
+
+<h3>Automações</h3>
+<ul>
+<li><b>Auto commit:</b> cria commit quando validação passa</li>
+<li><b>Auto push:</b> envia para remote após commit</li>
+</ul>
+
+<h3>Segurança</h3>
+<p>Branches protegidas criam checkpoints antes de push. Configure em <b>Configurações → Git</b>.</p>
 """,
     ),
     HelpSection(
@@ -141,9 +478,42 @@ HELP_SECTIONS = [
         summary="Quando usar cada modo da interface.",
         content="""
 <h2>Modo Simples vs Avançado</h2>
-<p><b>Modo simples:</b> mostra o essencial para começar rápido.</p>
-<p><b>Modo avançado:</b> libera painéis técnicos, opções raras e ajustes detalhados.</p>
-<p>Você pode alternar em Configurações ou pelo cabeçalho da própria tela.</p>
+
+<h3>Modo Simples</h3>
+<p>Ideal para começar e para uso diário básico.</p>
+<ul>
+<li>Interface limpa e focada</li>
+<li>Opções essenciais visíveis</li>
+<li>Painéis técnicos ocultos</li>
+<li>Menos decisões a tomar</li>
+</ul>
+
+<h3>Modo Avançado</h3>
+<p>Para quem precisa de controle total.</p>
+<ul>
+<li>Todas as opções visíveis</li>
+<li>Painéis de Políticas e Replay</li>
+<li>Configurações detalhadas</li>
+<li>Logs e diagnósticos completos</li>
+</ul>
+
+<h3>O que muda entre os modos</h3>
+<table style='border-collapse:collapse;width:100%'>
+<tr style='border-bottom:1px solid #3d4451'>
+<td><b>Recurso</b></td><td><b>Simples</b></td><td><b>Avançado</b></td>
+</tr>
+<tr><td>Nova Tarefa</td><td>Essencial</td><td>Completo</td></tr>
+<tr><td>Configurações</td><td>Básico</td><td>Detalhado</td></tr>
+<tr><td>Políticas</td><td>Oculto</td><td>Visível</td></tr>
+<tr><td>Replay</td><td>Oculto</td><td>Visível</td></tr>
+<tr><td>Logs</td><td>Oculto</td><td>Visível</td></tr>
+</table>
+
+<h3>Como alternar</h3>
+<ul>
+<li>Botão no cabeçalho de Configurações</li>
+<li>A preferência é salva automaticamente</li>
+</ul>
 """,
     ),
     HelpSection(
@@ -152,9 +522,33 @@ HELP_SECTIONS = [
         summary="Respostas curtas para dúvidas comuns.",
         content="""
 <h2>FAQ</h2>
-<p><b>Preciso de Git para usar?</b> Não, mas commit e push automáticos dependem disso.</p>
-<p><b>O que é configuração mínima?</b> Projeto, perfil, OpenAI, executor e workspace funcionando.</p>
-<p><b>Posso reabrir o onboarding?</b> Sim. Use o botão em Configurações.</p>
+
+<h3>Preciso de Git para usar?</h3>
+<p>Não. O app funciona sem Git, mas commit e push automáticos dependem dele.</p>
+
+<h3>O que é configuração mínima?</h3>
+<p>Projeto, perfil, OpenAI, executor e workspace funcionando. Git é recomendado mas opcional.</p>
+
+<h3>Posso reabrir o onboarding?</h3>
+<p>Sim. Use o botão em <b>Configurações</b>.</p>
+
+<h3>O que acontece se o executor falhar?</h3>
+<p>A execução para e você pode retomar depois de corrigir o problema.</p>
+
+<h3>Como faço para parar uma execução?</h3>
+<p>O botão de cancelar aparece na barra de status durante a execução.</p>
+
+<h3>Posso usar outro modelo além do gpt-4o?</h3>
+<p>Sim. Configure em <b>Configurações → Modelos</b> no modo avançado.</p>
+
+<h3>O que são checkpoints?</h3>
+<p>Pontos de pausa onde o sistema pede aprovação antes de ações sensíveis.</p>
+
+<h3>Como vejo o histórico de execuções?</h3>
+<p>Use a tela <b>Execuções</b> no menu lateral.</p>
+
+<h3>Onde ficam os logs?</h3>
+<p>Na pasta workspace/logs. Você também pode ver em <b>Diagnóstico</b>.</p>
 """,
     ),
     HelpSection(
@@ -163,12 +557,46 @@ HELP_SECTIONS = [
         summary="O que verificar quando algo não inicia como esperado.",
         content="""
 <h2>Solução de Problemas</h2>
-<ul>
-<li>Se a OpenAI falhar, revise a chave e teste novamente.</li>
-<li>Se o executor falhar, confirme o comando do Claude e o PATH.</li>
-<li>Se o workspace falhar, troque para uma pasta com permissão de escrita.</li>
-<li>Se o Git estiver ausente, o app continua funcionando, mas sem automações Git.</li>
-</ul>
+
+<h3>OpenAI não conecta</h3>
+<ol>
+<li>Revise a chave em <b>Configurações → Ambiente</b></li>
+<li>Clique em <b>Testar Conexão</b></li>
+<li>Verifique se a chave começa com sk-</li>
+<li>Confirme se tem créditos na conta OpenAI</li>
+</ol>
+
+<h3>Executor não encontrado</h3>
+<ol>
+<li>Abra um terminal e digite <code>claude --version</code></li>
+<li>Se não funcionar, instale o Claude Code CLI</li>
+<li>Se instalou mas não funciona, adicione ao PATH</li>
+<li>Rode <code>claude auth</code> para autenticar</li>
+</ol>
+
+<h3>Workspace sem permissão</h3>
+<ol>
+<li>Escolha uma pasta onde você pode criar arquivos</li>
+<li>Evite pastas do sistema ou protegidas</li>
+<li>Use a pasta do projeto ou uma subpasta workspace</li>
+</ol>
+
+<h3>Git não detectado</h3>
+<ol>
+<li>Confirme que git está instalado: <code>git --version</code></li>
+<li>Verifique se o projeto é um repositório Git</li>
+<li>Se não for, rode <code>git init</code> na pasta do projeto</li>
+</ol>
+
+<h3>Execução trava</h3>
+<ol>
+<li>Verifique os logs em <b>Diagnóstico</b></li>
+<li>Confirme que o executor está respondendo</li>
+<li>Aumente o timeout em <b>Configurações</b> se necessário</li>
+</ol>
+
+<h3>Ainda com problemas?</h3>
+<p>Rode o <b>Diagnóstico</b> completo e verifique cada item.</p>
 """,
     ),
 ]
