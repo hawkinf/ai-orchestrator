@@ -43,6 +43,7 @@ def test_simple_mode_includes_essential_panels():
     sections = InterfaceModeManager.visible_sections(MODE_SIMPLE)
 
     # Simple mode should show core functionality
+    assert "command_center" in sections
     assert "new_task" in sections
     assert "dashboard" in sections
     assert "checkpoints" in sections
@@ -56,6 +57,7 @@ def test_advanced_mode_includes_all_panels():
     sections = InterfaceModeManager.visible_sections(MODE_ADVANCED)
 
     expected = {
+        "command_center",
         "new_task",
         "dashboard",
         "checkpoints",

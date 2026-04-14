@@ -177,7 +177,7 @@ class UIPreferences:
     window_y: int = 100
     window_maximized: bool = False
 
-    last_tab: str = "new_task"
+    last_tab: str = "command_center"
     last_project_path: str = "."
     last_profile: str = "generic"
     interface_mode: str = "simple"

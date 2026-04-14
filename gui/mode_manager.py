@@ -9,8 +9,9 @@ MODE_ADVANCED = "advanced"
 class InterfaceModeManager:
     """Central visibility rules for interface modes."""
 
-    SIMPLE_SECTIONS = {"new_task", "dashboard", "checkpoints", "diagnostics", "settings", "help", "runs"}
+    SIMPLE_SECTIONS = {"command_center", "new_task", "dashboard", "checkpoints", "diagnostics", "settings", "help", "runs"}
     ADVANCED_SECTIONS = {
+        "command_center",
         "new_task",
         "dashboard",
         "checkpoints",

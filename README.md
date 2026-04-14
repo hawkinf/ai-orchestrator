@@ -1212,3 +1212,21 @@ State files are in `workspace/state/`. If corrupted:
 ## License
 
 MIT License - See LICENSE file for details.
+## Command Center
+
+O `Command Center` agora é a tela inicial padrão da GUI.
+
+Ele concentra:
+- saúde geral do sistema
+- próxima ação sugerida
+- runs recentes
+- alertas e checkpoints
+- ações recomendadas prioritárias
+
+No modo `simple`, a tela mostra só o essencial para decidir o próximo passo.
+No modo `advanced`, ela expõe mais sinais operacionais e o resumo de saúde detalhado.
+
+Use essa tela para responder rapidamente:
+- o sistema está saudável?
+- existe algo urgente?
+- qual é a melhor próxima ação?

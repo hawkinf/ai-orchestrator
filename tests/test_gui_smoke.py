@@ -89,7 +89,7 @@ class TestUIModels:
 
         assert prefs.window_width == 1200
         assert prefs.window_height == 800
-        assert prefs.last_tab == "new_task"
+        assert prefs.last_tab == "command_center"
         assert prefs.interface_mode == "simple"
 
 
@@ -249,6 +249,14 @@ class TestWidgetCreation:
         viewer = LogViewer()
         assert viewer is not None
         viewer.close()
+
+    def test_command_center_panel_creation(self, qapp):
+        """Test CommandCenterPanel can be created."""
+        from gui.command_center_panel import CommandCenterPanel
+
+        panel = CommandCenterPanel()
+        assert panel is not None
+        panel.close()
 
     def test_checkpoint_dialog_creation(self, qapp):
         """Test CheckpointDialog can be created."""
@@ -464,6 +472,15 @@ class TestMainWindowOpenAIFlow:
 
         assert window.stack.currentWidget() is window.config_panel
         assert window.config_panel.tabs.tabText(window.config_panel.tabs.currentIndex()) == "Executor"
+        window.close()
+
+    def test_main_window_starts_on_command_center(self, qapp):
+        """MainWindow should land on the command center by default."""
+        from gui.main_window import MainWindow
+
+        window = MainWindow(config=None, paths=None)
+
+        assert window.stack.currentWidget() is window.command_center_panel
         window.close()
 
 

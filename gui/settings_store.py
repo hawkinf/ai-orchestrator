@@ -38,7 +38,7 @@ class SettingsStore:
                     window_x=data.get("window_x", 100),
                     window_y=data.get("window_y", 100),
                     window_maximized=data.get("window_maximized", False),
-                    last_tab=data.get("last_tab", "new_task"),
+                    last_tab=data.get("last_tab", "command_center"),
                     last_project_path=data.get("last_project_path", "."),
                     last_profile=data.get("last_profile", "generic"),
                     interface_mode=data.get("interface_mode", "simple"),

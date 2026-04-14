@@ -44,6 +44,7 @@ from .openai_config_dialog import OpenAIConfigRequiredDialog
 from .checkpoints_panel import CheckpointsPanel
 from .policy_panel import PolicyPanel
 from .replay_panel import ReplayPanel
+from .command_center_panel import CommandCenterPanel
 
 
 class Sidebar(QFrame):
@@ -79,6 +80,7 @@ class Sidebar(QFrame):
         # Main section
         self._add_section_label(layout, "PRINCIPAL")
         nav_main = [
+            ("command_center", "Command Center"),
             ("new_task", "Nova Tarefa"),
             ("dashboard", "Dashboard"),
             ("checkpoints", "Checkpoints"),
@@ -325,6 +327,9 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
 
         # Pages
+        self.command_center_panel = CommandCenterPanel()
+        self.stack.addWidget(self.command_center_panel)
+
         self.task_panel = TaskPanel()
         self.stack.addWidget(self.task_panel)
 
@@ -372,10 +377,20 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         """Connect signals and slots."""
         # Sidebar navigation
-        for key in ["new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["command_center", "new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.clicked.connect(lambda checked, k=key: self._navigate(k))
+
+        # Command center
+        self.command_center_panel.navigate_to_new_task.connect(lambda: self._navigate("new_task"))
+        self.command_center_panel.start_first_task.connect(self._run_first_task_wizard)
+        self.command_center_panel.open_checkpoints.connect(lambda: self._navigate("checkpoints"))
+        self.command_center_panel.open_diagnostics.connect(lambda: self._navigate("diagnostics"))
+        self.command_center_panel.open_system_insights.connect(self._open_system_insights_from_command_center)
+        self.command_center_panel.open_runs.connect(lambda: self._navigate("runs"))
+        self.command_center_panel.run_selected.connect(self._on_dashboard_run_selected)
+        self.command_center_panel.recommended_action_requested.connect(self._execute_recommended_action)
 
         # Task panel
         self.task_panel.task_submitted.connect(self._on_task_submitted)
@@ -416,7 +431,7 @@ class MainWindow(QMainWindow):
         self.checkpoints_panel.open_run.connect(self._on_checkpoint_open_run)
 
         # Set initial page
-        self._navigate("new_task")
+        self._navigate("command_center")
 
     def _load_initial_data(self):
         """Load initial data."""
@@ -435,6 +450,7 @@ class MainWindow(QMainWindow):
         if self.paths:
             self.log_viewer.set_workspace_path(self.paths.workspace_root)
             self.run_panel.set_workspace_path(self.paths.workspace_root)
+            self.command_center_panel.set_workspace(self.paths.workspace_root)
 
         # Check for pending checkpoints
         self._check_checkpoints()
@@ -451,6 +467,11 @@ class MainWindow(QMainWindow):
             self.checkpoints_panel.set_workspace(self.paths.workspace_root)
         if self.config:
             self.checkpoints_panel.set_config(self.config)
+            self.command_center_panel.set_runtime_context(
+                config=self.config,
+                project_path=self._project_path,
+                first_task_pending=self.settings_store.is_first_task_pending() if self.settings_store else False,
+            )
 
         # Initialize policy panel
         if self.paths:
@@ -463,7 +484,7 @@ class MainWindow(QMainWindow):
         if self.settings_store:
             prefs = self.settings_store.load_preferences()
             self.task_panel.apply_preferences(prefs.show_advanced_options)
-            last_tab = prefs.last_tab or "new_task"
+            last_tab = prefs.last_tab or "command_center"
             if last_tab in InterfaceModeManager.visible_sections(self._interface_mode):
                 self._navigate(last_tab)
 
@@ -569,16 +590,17 @@ class MainWindow(QMainWindow):
             key = "settings"
 
         page_map = {
-            "new_task": 0,
-            "runs": 1,
-            "logs": 2,
-            "settings": 3,
-            "help": 4,
-            "diagnostics": 5,
-            "dashboard": 6,
-            "checkpoints": 7,
-            "policies": 8,
-            "replay": 9,
+            "command_center": 0,
+            "new_task": 1,
+            "runs": 2,
+            "logs": 3,
+            "settings": 4,
+            "help": 5,
+            "diagnostics": 6,
+            "dashboard": 7,
+            "checkpoints": 8,
+            "policies": 9,
+            "replay": 10,
         }
 
         if key in page_map:
@@ -828,6 +850,7 @@ class MainWindow(QMainWindow):
         if not self.store:
             self.logger.debug("Cannot refresh runs: store is None")
             self.run_panel.set_runs([])  # Show empty list
+            self.command_center_panel.refresh()
             return
 
         try:
@@ -853,11 +876,13 @@ class MainWindow(QMainWindow):
                     self.logger.warning(f"Error loading run {run_info.get('run_id')}: {run_error}")
 
             self.run_panel.set_runs(runs)
+            self.command_center_panel.refresh()
             self.logger.debug(f"Loaded {len(runs)} runs")
         except Exception as e:
             self.logger.error(f"Error refreshing runs: {e}")
             self.logger.debug(traceback.format_exc())
             self.run_panel.set_runs([])  # Show empty list on error
+            self.command_center_panel.refresh()
 
     @Slot(str)
     def _on_run_selected(self, run_id: str):
@@ -1115,6 +1140,11 @@ class MainWindow(QMainWindow):
         self._navigate("runs")
         self._on_run_selected(run_id)
 
+    def _open_system_insights_from_command_center(self):
+        """Open full system insights from the command center."""
+        self._navigate("dashboard")
+        self.dashboard_panel._open_system_insights_panel()
+
     def _open_logs_folder(self):
         """Open logs folder in file explorer."""
         if not self.paths:
@@ -1220,11 +1250,12 @@ class MainWindow(QMainWindow):
     def _apply_interface_mode(self, mode: str):
         """Apply interface mode across the shell and pages."""
         self._interface_mode = InterfaceModeManager.normalize(mode)
+        self.command_center_panel.set_interface_mode(self._interface_mode)
         self.task_panel.set_interface_mode(self._interface_mode)
         self.config_panel.set_interface_mode(self._interface_mode)
         visible_sections = InterfaceModeManager.visible_sections(self._interface_mode)
 
-        for key in ["new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
+        for key in ["command_center", "new_task", "dashboard", "checkpoints", "policies", "replay", "runs", "diagnostics", "logs", "settings", "help"]:
             btn = self.sidebar.get_button(key)
             if btn:
                 btn.setVisible(key in visible_sections)
@@ -1274,6 +1305,11 @@ class MainWindow(QMainWindow):
             self._apply_and_persist_settings(wizard.build_settings())
             if self.settings_store:
                 self.settings_store.mark_onboarding_completed(True)
+                self.command_center_panel.set_runtime_context(
+                    config=self.config,
+                    project_path=self._project_path,
+                    first_task_pending=self.settings_store.is_first_task_pending(),
+                )
             self._validate_minimum_setup()
 
             destination = wizard.selected_destination()
@@ -1336,9 +1372,15 @@ class MainWindow(QMainWindow):
         self.log_viewer.set_workspace_path(self.paths.workspace_root)
         self.run_panel.set_workspace_path(self.paths.workspace_root)
         self.dashboard_panel.set_workspace(self.paths.workspace_root)
+        self.command_center_panel.set_workspace(self.paths.workspace_root)
         self.checkpoints_panel.set_workspace(self.paths.workspace_root)
         self.checkpoints_panel.set_config(self.config)
         self.diagnostics_panel.set_config(self.config, self.paths, self._project_path)
+        self.command_center_panel.set_runtime_context(
+            config=self.config,
+            project_path=self._project_path,
+            first_task_pending=self.settings_store.is_first_task_pending() if self.settings_store else False,
+        )
         self._init_engine()
         self._init_policy_panel()
         self._init_replay_panel()
@@ -1399,6 +1441,11 @@ class MainWindow(QMainWindow):
 
         # Mark first task as completed
         self.settings_store.mark_first_task_completed(run_id)
+        self.command_center_panel.set_runtime_context(
+            config=self.config,
+            project_path=self._project_path,
+            first_task_pending=False,
+        )
 
         # Show completion dialog
         dialog = FirstRunCompletionDialog(run_id, success, summary, self)

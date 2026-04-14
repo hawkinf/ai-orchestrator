@@ -372,6 +372,39 @@ HELP_SECTIONS = [
 """,
     ),
     HelpSection(
+        key="command_center",
+        title="Entendendo o Command Center",
+        summary="Use a tela inicial para decidir rapidamente a próxima ação operacional.",
+        content="""
+<h2>Entendendo o Command Center</h2>
+
+<p>O <b>Command Center</b> é a tela inicial do AI Orchestrator. Ele resume o estado atual do sistema e aponta o melhor próximo passo.</p>
+
+<h3>O que aparece ali</h3>
+<ul>
+<li><b>Saúde do sistema:</b> leitura curta do momento operacional</li>
+<li><b>Próxima ação:</b> o que merece atenção primeiro</li>
+<li><b>Runs recentes:</b> últimas execuções com status, etapa e duração</li>
+<li><b>Alertas e checkpoints:</b> itens que podem bloquear a próxima run</li>
+<li><b>Ações recomendadas:</b> atalhos clicáveis para agir sem procurar a tela certa</li>
+</ul>
+
+<h3>Como usar</h3>
+<ol>
+<li>Leia o <b>resumo executivo</b> para entender se o sistema está saudável</li>
+<li>Se houver uma <b>próxima ação</b>, comece por ela</li>
+<li>Revise as <b>runs recentes</b> quando quiser contexto rápido</li>
+<li>Abra <b>Checkpoints</b> ou <b>Diagnóstico</b> se houver alertas operacionais</li>
+</ol>
+
+<h3>Modo simples vs avançado</h3>
+<ul>
+<li><b>Simples:</b> mostra só status, ação principal, CTA e runs essenciais</li>
+<li><b>Avançado:</b> expõe mais detalhes de saúde e sinais operacionais</li>
+</ul>
+""",
+    ),
+    HelpSection(
         key="recommended_actions",
         title="Como usar as Ações Recomendadas",
         summary="Transforme sinais e alertas em próximos passos práticos dentro da aplicação.",
