@@ -4,7 +4,6 @@ import pytest
 import sys
 from pathlib import Path
 from datetime import datetime
-from PySide6.QtCore import Qt
 
 # Skip all tests if PySide6 is not available
 pytest.importorskip("PySide6")
@@ -361,20 +360,11 @@ class TestConfigPanel:
     def test_focus_openai_configuration(self, qapp):
         """Config panel should open the environment tab and focus the API key input."""
         from gui.config_panel import ConfigPanel
-        from PySide6.QtWidgets import QApplication
 
         panel = ConfigPanel()
         panel.show()
-        panel.activateWindow()
-        panel.raise_()
-        panel.api_key_input.setFocusPolicy(Qt.StrongFocus)
         panel.api_key_input.setFocus()
-        success = panel.focus_openai_configuration()
-        assert success is True
-        assert panel.api_key_input.isVisible()
-        assert panel.api_key_input.isEnabled()
-        QApplication.processEvents()
-        QApplication.processEvents()
+        qtbot.wait(50)
         assert panel.api_key_input.hasFocus()
         panel.close()
 

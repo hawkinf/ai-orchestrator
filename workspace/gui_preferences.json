@@ -1,0 +1,19 @@
+{
+  "window_width": 1200,
+  "window_height": 800,
+  "window_x": 50,
+  "window_y": 50,
+  "window_maximized": false,
+  "last_tab": "command_center",
+  "last_project_path": ".",
+  "last_profile": "generic",
+  "interface_mode": "simple",
+  "onboarding_completed": true,
+  "sidebar_collapsed": false,
+  "show_advanced_options": false,
+  "first_task_completed": false,
+  "first_task_run_id": null,
+  "show_first_run_hints": true,
+  "recent_projects": [],
+  "recent_tasks": []
+}

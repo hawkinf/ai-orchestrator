@@ -739,13 +739,6 @@ class ConfigPanel(QWidget):
             self.tabs.setCurrentIndex(self._environment_tab_index)
         self._focus_input_field(self.api_key_input)
 
-        # Ensure the field is visible and enabled
-        if not self.api_key_input.isVisible() or not self.api_key_input.isEnabled():
-            return False
-
-        # Return True if focus was successfully set
-        return self.api_key_input.hasFocus()
-
     def open_tab(self, tab_name: str):
         """Open a settings tab by visible title."""
         normalized = tab_name.strip().lower()
@@ -770,19 +763,19 @@ class ConfigPanel(QWidget):
         if window is not None:
             if not window.isVisible():
                 window.show()
+            window.raise_()
             window.activateWindow()
 
-        if not widget.isVisible():
+        if not widget.isVisible() or (window is not None and not window.isActiveWindow()):
             if attempt < 5:
-                QTimer.singleShot(0, lambda: self._focus_input_field(widget, attempt + 1))
+                QTimer.singleShot(20, lambda: self._focus_input_field(widget, attempt + 1))
             return
 
-        QApplication.processEvents()
         widget.setFocus(Qt.FocusReason.OtherFocusReason)
         widget.selectAll()
 
         if not widget.hasFocus() and attempt < 5:
-            QTimer.singleShot(0, lambda: self._focus_input_field(widget, attempt + 1))
+            QTimer.singleShot(20, lambda: self._focus_input_field(widget, attempt + 1))
 
     def _toggle_key_visibility(self, show: bool):
         """Toggle API key visibility in input field."""

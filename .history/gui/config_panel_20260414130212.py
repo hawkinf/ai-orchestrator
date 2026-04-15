@@ -739,13 +739,6 @@ class ConfigPanel(QWidget):
             self.tabs.setCurrentIndex(self._environment_tab_index)
         self._focus_input_field(self.api_key_input)
 
-        # Ensure the field is visible and enabled
-        if not self.api_key_input.isVisible() or not self.api_key_input.isEnabled():
-            return False
-
-        # Return True if focus was successfully set
-        return self.api_key_input.hasFocus()
-
     def open_tab(self, tab_name: str):
         """Open a settings tab by visible title."""
         normalized = tab_name.strip().lower()

@@ -1,0 +1,202 @@
+{
+  "updated_at": "2026-04-13T16:58:21.073278",
+  "rules": [
+    {
+      "id": "builtin_require_human_critical",
+      "name": "Require Human for Critical",
+      "description": "Always require human approval for critical severity checkpoints",
+      "conditions": [
+        {
+          "field": "checkpoint.severity",
+          "operator": "equals",
+          "value": "critical"
+        }
+      ],
+      "action": "require_human",
+      "priority": 10,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073216",
+      "updated_at": "2026-04-13T16:58:21.073217"
+    },
+    {
+      "id": "builtin_require_human_delete",
+      "name": "Require Human for Delete Operations",
+      "description": "Require human approval when delete operations are detected",
+      "conditions": [
+        {
+          "field": "has_delete",
+          "operator": "is_true",
+          "value": null
+        }
+      ],
+      "action": "require_human",
+      "priority": 15,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073228",
+      "updated_at": "2026-04-13T16:58:21.073229"
+    },
+    {
+      "id": "builtin_require_human_migration",
+      "name": "Require Human for Migrations",
+      "description": "Require human approval for database migrations",
+      "conditions": [
+        {
+          "field": "has_migration",
+          "operator": "is_true",
+          "value": null
+        }
+      ],
+      "action": "require_human",
+      "priority": 15,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073234",
+      "updated_at": "2026-04-13T16:58:21.073235"
+    },
+    {
+      "id": "builtin_require_human_destructive_git",
+      "name": "Require Human for Destructive Git",
+      "description": "Require human approval for destructive git operations",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "git_destructive"
+        }
+      ],
+      "action": "require_human",
+      "priority": 10,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073239",
+      "updated_at": "2026-04-13T16:58:21.073239"
+    },
+    {
+      "id": "builtin_require_human_infrastructure",
+      "name": "Require Human for Infrastructure",
+      "description": "Require human approval for infrastructure changes",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "infrastructure_change"
+        }
+      ],
+      "action": "require_human",
+      "priority": 10,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073243",
+      "updated_at": "2026-04-13T16:58:21.073244"
+    },
+    {
+      "id": "builtin_require_human_architecture",
+      "name": "Require Human for Architecture Rewrite",
+      "description": "Require human approval for architecture rewrites",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "architecture_rewrite"
+        }
+      ],
+      "action": "require_human",
+      "priority": 10,
+      "enabled": true,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073247",
+      "updated_at": "2026-04-13T16:58:21.073248"
+    },
+    {
+      "id": "builtin_reject_repeated_failures",
+      "name": "Reject After Many Failures",
+      "description": "Auto-reject if checkpoint is due to too many repeated failures",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "repeated_failures"
+        },
+        {
+          "field": "failure_count",
+          "operator": "greater_than",
+          "value": 5
+        }
+      ],
+      "action": "reject",
+      "priority": 20,
+      "enabled": false,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073253",
+      "updated_at": "2026-04-13T16:58:21.073254"
+    },
+    {
+      "id": "builtin_approve_low_risk_manual",
+      "name": "Auto-approve Low Risk Manual Requests",
+      "description": "Auto-approve manual checkpoint requests with low risk",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "manual_request"
+        },
+        {
+          "field": "checkpoint.severity",
+          "operator": "equals",
+          "value": "info"
+        },
+        {
+          "field": "has_delete",
+          "operator": "is_false",
+          "value": null
+        },
+        {
+          "field": "has_migration",
+          "operator": "is_false",
+          "value": null
+        }
+      ],
+      "action": "approve",
+      "priority": 50,
+      "enabled": false,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073261",
+      "updated_at": "2026-04-13T16:58:21.073261"
+    },
+    {
+      "id": "builtin_approve_command_allowlist_small",
+      "name": "Auto-approve Small Safe Commands",
+      "description": "Auto-approve command checkpoints with small changes",
+      "conditions": [
+        {
+          "field": "checkpoint.type",
+          "operator": "equals",
+          "value": "command_not_allowed"
+        },
+        {
+          "field": "checkpoint.severity",
+          "operator": "equals",
+          "value": "warning"
+        },
+        {
+          "field": "affected_files_count",
+          "operator": "less_than",
+          "value": 5
+        },
+        {
+          "field": "has_delete",
+          "operator": "is_false",
+          "value": null
+        }
+      ],
+      "action": "approve",
+      "priority": 60,
+      "enabled": false,
+      "builtin": true,
+      "created_at": "2026-04-13T16:58:21.073272",
+      "updated_at": "2026-04-13T16:58:21.073272"
+    }
+  ]
+}

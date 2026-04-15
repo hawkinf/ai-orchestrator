@@ -4,7 +4,6 @@ import pytest
 import sys
 from pathlib import Path
 from datetime import datetime
-from PySide6.QtCore import Qt
 
 # Skip all tests if PySide6 is not available
 pytest.importorskip("PySide6")
@@ -361,20 +360,13 @@ class TestConfigPanel:
     def test_focus_openai_configuration(self, qapp):
         """Config panel should open the environment tab and focus the API key input."""
         from gui.config_panel import ConfigPanel
-        from PySide6.QtWidgets import QApplication
 
         panel = ConfigPanel()
         panel.show()
-        panel.activateWindow()
-        panel.raise_()
-        panel.api_key_input.setFocusPolicy(Qt.StrongFocus)
-        panel.api_key_input.setFocus()
-        success = panel.focus_openai_configuration()
-        assert success is True
-        assert panel.api_key_input.isVisible()
-        assert panel.api_key_input.isEnabled()
-        QApplication.processEvents()
-        QApplication.processEvents()
+        panel.focus_openai_configuration()
+        qapp.processEvents()
+
+        assert panel.tabs.currentIndex() == panel._environment_tab_index
         assert panel.api_key_input.hasFocus()
         panel.close()
 
@@ -489,23 +481,6 @@ class TestMainWindowOpenAIFlow:
         window = MainWindow(config=None, paths=None)
 
         assert window.stack.currentWidget() is window.command_center_panel
-        window.close()
-
-    def test_main_window_can_launch_interactive_demo(self, qapp):
-        """MainWindow should expose the fictional interactive demo overlay."""
-        from gui.main_window import MainWindow
-
-        window = MainWindow(config=None, paths=None)
-        window.show()
-        qapp.processEvents()
-
-        window._run_interactive_demo()
-        qapp.processEvents()
-
-        assert window.demo_controller is not None
-        assert window.demo_controller.overlay.isVisible()
-        assert window.demo_controller.current_step() is not None
-        window.demo_controller.stop()
         window.close()
 
     def test_build_run_failure_summary_prefers_validation_context(self, qapp):

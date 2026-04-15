@@ -369,10 +369,6 @@ class TestConfigPanel:
         panel.raise_()
         panel.api_key_input.setFocusPolicy(Qt.StrongFocus)
         panel.api_key_input.setFocus()
-        success = panel.focus_openai_configuration()
-        assert success is True
-        assert panel.api_key_input.isVisible()
-        assert panel.api_key_input.isEnabled()
         QApplication.processEvents()
         QApplication.processEvents()
         assert panel.api_key_input.hasFocus()

@@ -1,0 +1,7 @@
+2026-04-13 11:12:51,625 [INFO] ai_orchestrator: Logging to file: workspace\logs\gui_20260413.log
+2026-04-13 11:12:51,625 [CRITICAL] ai_orchestrator: Fatal error starting GUI: attempted relative import with no known parent package
+2026-04-13 11:12:51,626 [CRITICAL] ai_orchestrator: Traceback (most recent call last):
+  File "C:\flutter\ai-orchestrator\gui\app.py", line 151, in run_gui
+    from .main_window import MainWindow
+ImportError: attempted relative import with no known parent package
+
