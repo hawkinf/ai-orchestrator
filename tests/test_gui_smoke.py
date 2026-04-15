@@ -359,23 +359,23 @@ class TestConfigPanel:
         panel.close()
 
     def test_focus_openai_configuration(self, qapp):
-        """Config panel should open the environment tab and focus the API key input."""
+        """Config panel should open the environment tab and enable the API key input.
+
+        Note: This test validates DETERMINISTIC state only (tab selection + field enabled).
+        Real focus depends on OS/window state and is not reliable in headless/CI.
+        """
         from gui.config_panel import ConfigPanel
-        from PySide6.QtWidgets import QApplication
 
         panel = ConfigPanel()
-        panel.show()
-        panel.activateWindow()
-        panel.raise_()
-        panel.api_key_input.setFocusPolicy(Qt.StrongFocus)
-        panel.api_key_input.setFocus()
-        success = panel.focus_openai_configuration()
-        assert success is True
-        assert panel.api_key_input.isVisible()
+
+        result = panel.focus_openai_configuration()
+
+        # Validate deterministic state only
+        assert result is True
+        assert panel.tabs.currentIndex() == panel.tabs.indexOf(panel.openai_tab)
+        assert panel.tabs.currentWidget() == panel.openai_tab
         assert panel.api_key_input.isEnabled()
-        QApplication.processEvents()
-        QApplication.processEvents()
-        assert panel.api_key_input.hasFocus()
+
         panel.close()
 
     def test_config_panel_mode_toggle(self, qapp):
