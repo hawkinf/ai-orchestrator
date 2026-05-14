@@ -74,7 +74,8 @@ class AboutDialog(QDialog):
         subtitle.setWordWrap(True)
         meta_layout.addWidget(subtitle)
 
-        meta_layout.addWidget(QLabel(f"Versão atual: {self._version_info.version}"))
+        self.version_label = QLabel(f"Versão atual: {self._version_info.display_label}")
+        meta_layout.addWidget(self.version_label)
         meta_layout.addWidget(QLabel(f"Canal: {self._version_info.channel.value}"))
         meta_layout.addWidget(QLabel(f"Build date: {self._version_info.build_date or 'N/D'}"))
 

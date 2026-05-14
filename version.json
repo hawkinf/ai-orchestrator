@@ -1,13 +1,14 @@
 {
-  "version": "0.2.0",
+  "version": "0.99.0",
   "major": 0,
-  "minor": 2,
+  "minor": 99,
   "patch": 0,
   "prerelease": null,
   "build": null,
   "channel": "stable",
-  "build_date": "2026-04-14T19:41:17",
-  "commit_hash": "37b15cd",
+  "build_date": "2026-05-14T14:35:00",
+  "commit_hash": null,
   "app_name": "AI Orchestrator",
-  "author": "Hawk Informatica"
+  "author": "Hawk Informatica",
+  "display_version": "0.99 Build 20260514 14:35"
 }

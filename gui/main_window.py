@@ -436,6 +436,9 @@ class MainWindow(QMainWindow):
         self.config_panel.mode_changed.connect(self._on_interface_mode_changed)
         self.config_panel.onboarding_requested.connect(self._run_onboarding)
         self.config_panel.complete_setup_requested.connect(self._validate_minimum_setup)
+        self.config_panel.open_ai_connections_requested.connect(self._open_ai_connections_dialog)
+        self.config_panel.open_diagnostics_requested.connect(lambda: self._navigate("diagnostics"))
+        self.config_panel.revalidate_requested.connect(self._validate_minimum_setup)
 
         # Diagnostics panel
         self.diagnostics_panel.open_config.connect(lambda: self._navigate("settings"))
@@ -711,6 +714,37 @@ class MainWindow(QMainWindow):
         """Navigate to the correct settings area for OpenAI configuration."""
         self._navigate("settings")
         self.config_panel.focus_openai_configuration()
+
+    def _open_ai_connections_dialog(self, section: str = ""):
+        """Open the unified 'Conexões IA' dialog for OpenAI + Claude setup."""
+        from orchestrator.ai_connection_service import AIConnectionService
+        from .ai_connections_dialog import AIConnectionsDialog
+
+        project_root = Path(self._project_path or Path.cwd())
+        settings = self.config_panel.get_settings()
+        claude_command = settings.executor_command or "claude"
+        service = AIConnectionService(project_root, claude_command=claude_command)
+
+        dialog = AIConnectionsDialog(
+            service=service,
+            claude_command=claude_command,
+            initial_section=section or "",
+            parent=self,
+        )
+        dialog.claude_command_changed.connect(self._on_claude_command_changed)
+        dialog.configuration_changed.connect(self._validate_minimum_setup)
+        dialog.exec()
+        # Refresh the checklist so saved keys/commands show up without a restart.
+        self._validate_minimum_setup()
+
+    def _on_claude_command_changed(self, command: str):
+        """Persist a Claude command chosen in the Conexões IA dialog."""
+        self.config_panel.executor_cmd_edit.setText(command)
+        try:
+            self._apply_and_persist_settings(self.config_panel.get_settings())
+        except Exception as exc:  # pragma: no cover - defensive
+            self.logger.error(f"Failed to persist Claude command: {exc}")
+        self._validate_minimum_setup()
 
     def _init_policy_panel(self):
         """Initialize the policy panel."""

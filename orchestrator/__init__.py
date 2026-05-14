@@ -49,6 +49,18 @@ from .updater import (
     get_updater,
     check_for_updates,
 )
+from .claude_detector import (
+    ClaudeExecutorDetector,
+    ClaudeDetectionResult,
+    ClaudeStatus,
+)
+from .env_config_service import (
+    EnvConfigService,
+    EnvWriteResult,
+    OpenAIKeyState,
+    OpenAIKeyStatus,
+)
+from .ai_connection_service import AIConnectionService, OpenAIConnectionTester
 
 __all__ = [
     "OrchestratorConfig",
@@ -84,6 +96,15 @@ __all__ = [
     "ReplayResult",
     "ReplayComparison",
     "ComparisonResult",
+    "ClaudeExecutorDetector",
+    "ClaudeDetectionResult",
+    "ClaudeStatus",
+    "EnvConfigService",
+    "EnvWriteResult",
+    "OpenAIKeyState",
+    "OpenAIKeyStatus",
+    "AIConnectionService",
+    "OpenAIConnectionTester",
     "Version",
     "VersionInfo",
     "VersionManager",

@@ -55,7 +55,7 @@ def main():
 
     # Create and show main window
     window = MainWindow()
-    window.setWindowTitle(f"{info.app_name} v{info.version}")
+    window.setWindowTitle(f"{info.app_name} v{info.display_label}")
     window.show()
 
     # Run application

@@ -32,6 +32,11 @@ class ConfigPanel(QWidget):
     mode_changed = Signal(str)
     onboarding_requested = Signal()
     complete_setup_requested = Signal()
+    # Open the "Conexões IA" dialog. Argument is a section hint:
+    # "openai", "claude" or "" (no preference).
+    open_ai_connections_requested = Signal(str)
+    open_diagnostics_requested = Signal()
+    revalidate_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -64,6 +69,13 @@ class ConfigPanel(QWidget):
         self.onboarding_btn.setProperty("ghost", True)
         self.onboarding_btn.clicked.connect(self.onboarding_requested.emit)
         header_layout.addWidget(self.onboarding_btn)
+
+        self.ai_connections_btn = QPushButton("Conexões IA")
+        self.ai_connections_btn.setToolTip("Configurar ChatGPT/OpenAI e Claude")
+        self.ai_connections_btn.clicked.connect(
+            lambda: self.open_ai_connections_requested.emit("")
+        )
+        header_layout.addWidget(self.ai_connections_btn)
 
         header_layout.addStretch()
 
@@ -711,6 +723,11 @@ class ConfigPanel(QWidget):
         title_row.addWidget(title)
         title_row.addStretch()
 
+        self.revalidate_btn = QPushButton("Verificar novamente")
+        self.revalidate_btn.setProperty("secondary", True)
+        self.revalidate_btn.clicked.connect(self.revalidate_requested.emit)
+        title_row.addWidget(self.revalidate_btn)
+
         self.complete_setup_btn = QPushButton("Concluir configuração")
         self.complete_setup_btn.clicked.connect(self.complete_setup_requested.emit)
         title_row.addWidget(self.complete_setup_btn)
@@ -727,12 +744,91 @@ class ConfigPanel(QWidget):
         self.setup_status_label.setWordWrap(True)
         layout.addWidget(self.setup_status_label)
 
-        self.setup_checks_label = QLabel("")
-        self.setup_checks_label.setWordWrap(True)
-        self.setup_checks_label.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(self.setup_checks_label)
+        # Dynamic list of checks; each problem item gets its own fix button.
+        self.setup_checks_container = QVBoxLayout()
+        self.setup_checks_container.setSpacing(6)
+        layout.addLayout(self.setup_checks_container)
+
+        # Always-visible action row (central de ação).
+        actions_row = QHBoxLayout()
+        actions_row.setSpacing(8)
+
+        self.configure_openai_btn = QPushButton("Configurar ChatGPT/OpenAI")
+        self.configure_openai_btn.clicked.connect(
+            lambda: self.open_ai_connections_requested.emit("openai")
+        )
+        actions_row.addWidget(self.configure_openai_btn)
+
+        self.configure_claude_btn = QPushButton("Configurar Claude")
+        self.configure_claude_btn.clicked.connect(
+            lambda: self.open_ai_connections_requested.emit("claude")
+        )
+        actions_row.addWidget(self.configure_claude_btn)
+
+        self.test_connection_setup_btn = QPushButton("Testar conexão")
+        self.test_connection_setup_btn.setProperty("secondary", True)
+        self.test_connection_setup_btn.clicked.connect(self.revalidate_requested.emit)
+        actions_row.addWidget(self.test_connection_setup_btn)
+
+        self.open_diagnostics_btn = QPushButton("Abrir diagnóstico")
+        self.open_diagnostics_btn.setProperty("secondary", True)
+        self.open_diagnostics_btn.clicked.connect(self.open_diagnostics_requested.emit)
+        actions_row.addWidget(self.open_diagnostics_btn)
+
+        actions_row.addStretch()
+        layout.addLayout(actions_row)
 
         return card
+
+    @staticmethod
+    def _fix_button_label(key: str) -> str:
+        return {
+            "openai": "Configurar ChatGPT/OpenAI",
+            "executor": "Configurar Claude",
+            "git": "Configurar Git",
+        }.get(key, "Corrigir")
+
+    def _build_check_row(self, check) -> QWidget:
+        """Build a single checklist row with an inline fix button when needed."""
+        row = QFrame()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(8)
+
+        icon = "OK" if check.ok else ("!" if check.required else "-")
+        color = "#22c55e" if check.ok else ("#ef4444" if check.required else "#f59e0b")
+        icon_label = QLabel(icon)
+        icon_label.setFixedWidth(28)
+        icon_label.setStyleSheet(f"color: {color}; font-weight: 600;")
+        row_layout.addWidget(icon_label)
+
+        text = f"<b>{check.title}</b>: {check.summary}"
+        if check.action_hint and not check.ok:
+            text += f" — {check.action_hint}"
+        text_label = QLabel(text)
+        text_label.setTextFormat(Qt.TextFormat.RichText)
+        text_label.setWordWrap(True)
+        row_layout.addWidget(text_label, 1)
+
+        if not check.ok:
+            fix_btn = QPushButton(self._fix_button_label(check.key))
+            fix_btn.setProperty("secondary", True)
+            fix_btn.setObjectName(f"fix_{check.key}")
+            fix_btn.clicked.connect(lambda _=False, k=check.key: self._on_fix_check(k))
+            row_layout.addWidget(fix_btn)
+
+        return row
+
+    def _on_fix_check(self, key: str):
+        """Route an inline fix button to the right configuration surface."""
+        if key == "openai":
+            self.open_ai_connections_requested.emit("openai")
+        elif key == "executor":
+            self.open_ai_connections_requested.emit("claude")
+        elif key == "git":
+            self.focus_git_configuration()
+        else:
+            self.open_tab("Geral")
 
     def focus_openai_configuration(self) -> bool:
         """Open the environment tab and focus the OpenAI API key field.
@@ -1158,7 +1254,7 @@ class ConfigPanel(QWidget):
                 self.tabs.setTabVisible(index, tab_visibility.get(title, True))
 
     def set_setup_validation(self, result: SetupValidationResult):
-        """Render the setup checklist state."""
+        """Render the setup checklist as an actionable list and gate completion."""
         self._setup_result = result
         if result.is_ready:
             self.setup_status_label.setText("Checklist concluído. A configuração mínima está pronta.")
@@ -1167,13 +1263,27 @@ class ConfigPanel(QWidget):
             self.setup_status_label.setText("Ainda faltam itens obrigatórios antes da primeira automação.")
             self.setup_status_label.setStyleSheet("color: #f59e0b;")
 
-        lines = []
+        # Clear previous rows. setParent(None) detaches immediately so the
+        # widget tree reflects the new state without waiting for the event loop.
+        while self.setup_checks_container.count():
+            item = self.setup_checks_container.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+
         for check in result.checks:
-            icon = "OK" if check.ok else ("!" if check.required else "-")
-            color = "#22c55e" if check.ok else ("#ef4444" if check.required else "#f59e0b")
-            suffix = "" if not check.action_hint else f" — {check.action_hint}"
-            lines.append(f"<span style='color:{color}'>{icon}</span> <b>{check.title}</b>: {check.summary}{suffix}")
-        self.setup_checks_label.setText("<br/>".join(lines))
+            self.setup_checks_container.addWidget(self._build_check_row(check))
+
+        # "Concluir configuração" só passa quando os obrigatórios estão OK.
+        self.complete_setup_btn.setEnabled(result.is_ready)
+        if result.is_ready:
+            self.complete_setup_btn.setToolTip("Configuração mínima pronta.")
+        else:
+            missing = ", ".join(check.title for check in result.blockers)
+            self.complete_setup_btn.setToolTip(
+                f"Resolva os itens obrigatórios antes de concluir: {missing}"
+            )
 
     def get_settings(self) -> SettingsViewModel:
         """Get settings from the form."""

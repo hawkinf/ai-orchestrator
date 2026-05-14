@@ -162,6 +162,14 @@ class VersionInfo:
     commit_hash: Optional[str] = None
     app_name: str = DEFAULT_APP_NAME
     author: str = DEFAULT_AUTHOR
+    # Human-facing build label, e.g. "0.99 Build 20260514 14:35".
+    # When set, this is the version shown in the GUI / About screen.
+    display_version: Optional[str] = None
+
+    @property
+    def display_label(self) -> str:
+        """Return the label to display in the UI (build label or semver)."""
+        return self.display_version or str(self.version)
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -177,6 +185,7 @@ class VersionInfo:
             "commit_hash": self.commit_hash,
             "app_name": self.app_name,
             "author": self.author,
+            "display_version": self.display_version,
         }
 
     @classmethod
@@ -216,6 +225,7 @@ class VersionInfo:
             commit_hash=data.get("commit_hash"),
             app_name=data.get("app_name", DEFAULT_APP_NAME),
             author=data.get("author", DEFAULT_AUTHOR),
+            display_version=data.get("display_version"),
         )
 
 
